@@ -1,5 +1,6 @@
 import type { LinksFunction } from "@remix-run/node";
 import {
+  Link,
   Links,
   Meta,
   Outlet,
@@ -8,9 +9,10 @@ import {
 } from "@remix-run/react";
 import type { RemixService } from "@thiez-64/backend";
 
-import "./tailwind.css";
+import styles from "./tailwind.css";
 
 export const links: LinksFunction = () => [
+  { rel: "stylesheet", href: styles },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
@@ -34,15 +36,23 @@ declare module "@remix-run/node" {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="h-full">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
       </head>
-      <body>
+      <body className="min-h-screen flex flex-col bg-sky-700">
+        <header>
+          <nav>
+            <Link to="/">Home</Link>
+          </nav>
+        </header>
         {children}
+        <footer className="mt-auto bg-red-700">
+          <Link to="/">Footer</Link>
+        </footer>
         <ScrollRestoration />
         <Scripts />
       </body>

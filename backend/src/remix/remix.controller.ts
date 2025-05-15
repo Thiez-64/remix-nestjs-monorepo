@@ -16,7 +16,6 @@ export class RemixController {
     return createRequestHandler({
       build: await getServerBuild(),
       getLoadContext: () => ({
-        toto: 'Cette stack est geniale',
         remixService: this.remixService,
       }),
     })(request, response, next);
