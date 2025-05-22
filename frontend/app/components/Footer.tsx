@@ -1,12 +1,15 @@
-import { NavLink } from "@remix-run/react";
-import { Mail, Plus, Search, Star, Users } from "lucide-react";
+import { Link, NavLink } from "@remix-run/react";
+import { Mail, Search, Star, Users } from "lucide-react";
 
 export const Footer = () => {
   return (
     <footer className="overflow-x-auto px-3 py-2 flex items-center justify-between gap-4 mt-auto bg-lightTurquoise">
+      <Link to="/">
+        <div className="w-full h-auto max-w-[120px] text-black">LOGO</div>
+      </Link>
       <FooterLinkItem href="/" icon={<Search />} label="Rechercher" />
       <FooterLinkItem href="/" icon={<Users />} label="Offreurs" />
-      <FooterLinkItem href="/home" icon={<Plus />} label="Demandes" />
+
       <FooterLinkItem href="/" icon={<Star />} label="Favoris" />
       <FooterLinkItem href="/" icon={<Mail />} label="Message" />
     </footer>
