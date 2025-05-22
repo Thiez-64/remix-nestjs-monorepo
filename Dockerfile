@@ -36,8 +36,8 @@ ENV TURBO_TOKEN=$TURBO_TOKEN
 ENV TZ=Europe/Paris
 ENV NODE_ENV="production"
 
-# ADD backend/prisma backend/prisma
-# RUN cd backend && npx prisma generate
+ADD backend/prisma backend/prisma
+RUN cd backend && npx prisma generate
 
 RUN npm run build
 
@@ -58,7 +58,7 @@ COPY --chown=remix-api:nodejs --from=installer /app/node_modules ./node_modules
 COPY --chown=remix-api:nodejs --from=installer /app/node_modules/@thiez-64/frontend ./node_modules/@thiez-64/frontend
 COPY --chown=remix-api:nodejs --from=installer /app/node_modules/@thiez-64/typescript-config ./node_modules/@thiez-64/typescript-config
 COPY --chown=remix-api:nodejs --from=installer /app/node_modules/@thiez-64/eslint-config ./node_modules/@thiez-64/eslint-config
-# COPY --chown=remix-api:nodejs --from=installer /app/backend/prisma ./backend/prisma
+COPY --chown=remix-api:nodejs --from=installer /app/backend/prisma ./backend/prisma
 
 COPY --chown=remix-api:nodejs --from=builder /app/backend/start.sh ./backend/start.sh
 

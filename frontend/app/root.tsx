@@ -1,16 +1,20 @@
-import type { LinksFunction } from "@remix-run/node";
+import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import {
-  Link,
+  json,
   Links,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteLoaderData,
 } from "@remix-run/react";
 import type { RemixService } from "@thiez-64/backend";
+import { Footer } from "./components/Footer";
+import { Header } from "./components/Header";
+import { getOptionalUser } from "./server/auth.server";
 
 export const links: LinksFunction = () => [
-  { rel: "stylesheet", href: "/build/tailwind.css" },
+  { rel: "stylesheet", href: "/app/tailwind.css" },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
@@ -23,12 +27,23 @@ export const links: LinksFunction = () => [
   },
 ];
 
+export const loader = async ({ context }: LoaderFunctionArgs) => {
+  const user = await getOptionalUser({ context });
+  return json({ user });
+};
+
+export const useOptionalUser = () => {
+  const data = useRouteLoaderData<typeof loader>("root");
+  if (!data) {
+    throw new Error("Root Loader did not return anything");
+  }
+  return data.user;
+};
+
 declare module "@remix-run/node" {
   interface AppLoadContext {
-    toto: string;
-    context: {
-      remixService: RemixService;
-    };
+    remixService: RemixService;
+    user: unknown;
   }
 }
 
@@ -41,16 +56,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="min-h-screen flex flex-col bg-sky-700">
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-          </nav>
-        </header>
+      <body className="min-h-screen flex flex-col">
+        <Header />
         {children}
-        <footer className="mt-auto bg-red-700">
-          <Link to="/">Footer</Link>
-        </footer>
+        <Footer />
         <ScrollRestoration />
         <Scripts />
       </body>
