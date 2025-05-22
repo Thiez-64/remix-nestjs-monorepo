@@ -1,24 +1,31 @@
+version: "3.8"
+
 services:
   monorepo_prod:
+    container_name: nestjs-remix-monorepo-prod
+    image: thiez64/nestjs-remix-monorepo:production
+    restart: always
+    ports:
+      - "3000:3000"
     environment:
       - REDIS_URL=redis://redis:6379
       - NODE_ENV
       - DATABASE_URL
+    depends_on:
+      - redis_prod
+    networks:
+      - remix_network
 
-    container_name: nestjs-remix-monorepo-prod
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile
-    image: thiez64/nestjs-remix-monorepo:production
-    restart: always
-    ports:
-      - 3000:3000
   redis_prod:
     image: redis:latest
+    container_name: remix-nestjs-monorepo-redis_prod-1
     restart: always
-    # ports:
-    #   - '6379:6379'
-    command: ["redis-server"] 
-    # --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
-    volumes: 
+    command: ["redis-server"]
+    volumes:
       - /dev/volumes/nestjs-remix/production/sessions/:/data
+    networks:
+      - remix_network
+
+networks:
+  remix_network:
+    driver: bridge
