@@ -104,7 +104,9 @@ export default function Register() {
           <div className="flex items-center">
             <span>Already have an account?</span>
             <Link to="/login">
-              <Button variant="secondary">Login</Button>
+              <Button variant="secondary" className="text-[#c50017]">
+                Login
+              </Button>
             </Link>
           </div>
         </div>
@@ -166,7 +168,9 @@ export default function Register() {
         <div className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center">
           <span>By signing in, you agree to our</span>
           <Link to="/terms" className="text-primary font-medium">
-            <Button variant="secondary">Terms of Service</Button>
+            <Button variant="secondary" className="text-[#c50017]">
+              Terms of Service
+            </Button>
           </Link>
         </div>
       </div>

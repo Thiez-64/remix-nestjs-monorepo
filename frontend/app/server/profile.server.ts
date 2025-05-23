@@ -1,6 +1,6 @@
 import { type AppLoadContext } from "@remix-run/node";
 import { type z } from "zod";
-import { EditProfileSchema } from "~/routes/_public+/profile";
+import { EditProfileSchema } from "~/routes/_private+/profile";
 
 export const editProfile = async ({
   context,

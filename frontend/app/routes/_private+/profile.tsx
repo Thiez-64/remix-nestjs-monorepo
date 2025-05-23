@@ -2,6 +2,7 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { ActionFunctionArgs, json, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, useActionData, useLoaderData } from "@remix-run/react";
+import { ShieldUser, User } from "lucide-react";
 import z from "zod";
 import { Field } from "~/components/forms";
 import { Button } from "~/components/ui/button";
@@ -63,7 +64,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   return json({ result: submission.reply() });
 };
 
-export default function UserProfile() {
+export default function Profile() {
   const { user } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [form, fields] = useForm({
@@ -79,38 +80,55 @@ export default function UserProfile() {
   });
 
   return (
-    <div className="max-w-[600px] mx-auto">
-      <h1 className="text-xl mb-2">Profil</h1>
-      <Form
-        {...getFormProps(form)}
-        method="POST"
-        // action='/auth/login'
-        reloadDocument
-        className="flex flex-col gap-4"
-      >
-        <Field
-          inputProps={getInputProps(fields.name, {
-            type: "text",
-          })}
-          labelsProps={{
-            children: "Name",
-          }}
-          errors={fields.name.errors}
-        />
-        <Field
-          inputProps={getInputProps(fields.email, {
-            type: "email",
-          })}
-          labelsProps={{
-            children: "Email address",
-          }}
-          errors={fields.email.errors}
-        />
-
-        <Button className="ml-auto" size="sm" type="submit">
-          Update
-        </Button>
-      </Form>
+    <div className="bg-white dark:bg-background max-w-sm mx-auto w-full mt-14 flex flex-col gap-4">
+      <div className="flex flex-col gap-4 border border-gray-200 rounded-lg p-4">
+        <div className="flex flex-col gap-2 items-center">
+          <User className="w-10 h-10" />
+          <h1 className="text-4xl font-bold">Profile</h1>
+          <span className="text-center">{user.email}</span>
+        </div>
+        <Form
+          {...getFormProps(form)}
+          method="POST"
+          // action='/auth/login'
+          reloadDocument
+          className="flex flex-col gap-4"
+        >
+          <Field
+            inputProps={getInputProps(fields.name, {
+              type: "text",
+            })}
+            labelsProps={{
+              children: "Name",
+            }}
+            errors={fields.name.errors}
+          />
+          <Field
+            inputProps={getInputProps(fields.email, {
+              type: "email",
+            })}
+            labelsProps={{
+              children: "Email",
+            }}
+            errors={fields.email.errors}
+          />
+          <Button className="w-full" type="submit">
+            Update
+          </Button>
+        </Form>
+      </div>
+      <div className="flex flex-col gap-4 border border-gray-200 rounded-lg p-4">
+        <div className="flex flex-col gap-2 items-center">
+          <ShieldUser className="w-10 h-10" />
+          <h1 className="text-4xl font-bold text-center">
+            Reset your password
+          </h1>
+          <span className="text-center">
+            We are going to send you an email to change your password.
+          </span>
+        </div>
+        <Button className="w-full">Reset</Button>
+      </div>
     </div>
   );
 }

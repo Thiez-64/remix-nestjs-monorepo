@@ -94,9 +94,11 @@ export default function Login() {
           <LockKeyhole className="w-10 h-10" />
           <h1 className="text-4xl font-bold">Welcome back!</h1>
           <div className="flex items-center">
-            <span>Don't have an account?</span>
+            <span>Don&apost have an account?</span>
             <Link to="/register">
-              <Button variant="secondary">Sign up</Button>
+              <Button variant="secondary" className="text-[#c50017]">
+                Sign up
+              </Button>
             </Link>
           </div>
         </div>
@@ -147,7 +149,9 @@ export default function Login() {
         <div className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center">
           <span>By signing in, you agree to our</span>
           <Link to="/terms" className="text-primary font-medium">
-            <Button variant="secondary">Terms of Service</Button>
+            <Button variant="secondary" className="text-[#c50017]">
+              Terms of Service
+            </Button>
           </Link>
         </div>
       </div>
