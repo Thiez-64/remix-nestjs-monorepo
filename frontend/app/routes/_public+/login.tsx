@@ -6,7 +6,8 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "@remix-run/node";
-import { Form, useActionData } from "@remix-run/react";
+import { Form, Link, useActionData } from "@remix-run/react";
+import { Chrome, LockKeyhole } from "lucide-react";
 import { z } from "zod";
 import { Field } from "~/components/forms";
 import { Button } from "~/components/ui/button";
@@ -87,38 +88,69 @@ export default function Login() {
     lastResult: actionData?.result,
   });
   return (
-    <div className="max-w-[600px] mx-auto">
-      <h1>Connexion</h1>
-      <Form
-        {...getFormProps(form)}
-        method="POST"
-        reloadDocument
-        className="flex flex-col gap-4"
-      >
-        <Field
-          inputProps={getInputProps(fields.email, {
-            type: "email",
-          })}
-          labelsProps={{
-            children: "Adresse e-mail",
-          }}
-          errors={fields.email.errors}
-        />
+    <div className="rounded-lg divide-y divide-gray-200 dark:divide-gray-800 ring-1 ring-gray-200 dark:ring-gray-800 shadow bg-white dark:bg-background max-w-sm mx-auto w-full mt-14">
+      <div className="flex flex-col gap-4 border border-gray-200 rounded-lg p-4">
+        <div className="flex flex-col gap-2 items-center">
+          <LockKeyhole className="w-10 h-10" />
+          <h1 className="text-4xl font-bold">Welcome back!</h1>
+          <div className="flex items-center">
+            <span>Don't have an account?</span>
+            <Link to="/register">
+              <Button variant="secondary">Sign up</Button>
+            </Link>
+          </div>
+        </div>
+        <Form
+          {...getFormProps(form)}
+          method="POST"
+          reloadDocument
+          className="space-y-6"
+        >
+          <Field
+            inputProps={getInputProps(fields.email, {
+              type: "email",
+            })}
+            labelsProps={{
+              children: "Email",
+            }}
+            errors={fields.email.errors}
+          />
 
-        <Field
-          inputProps={getInputProps(fields.password, {
-            type: "password",
-          })}
-          labelsProps={{
-            children: "Mot de passe",
-          }}
-          errors={fields.password.errors}
-        />
+          <Field
+            inputProps={getInputProps(fields.password, {
+              type: "password",
+            })}
+            labelsProps={{
+              children: "Password",
+            }}
+            errors={fields.password.errors}
+          />
 
-        <Button className="ml-auto" type="submit">
-          Se connecter
+          <Button className="w-full" type="submit">
+            Continue
+          </Button>
+        </Form>
+        <div className="flex items-center align-center text-center w-full flex-row">
+          <div className="flex border-gray-200 dark:border-gray-800 w-full border-t border-solid"></div>
+          <div className="font-medium text-gray-700 dark:text-gray-200 flex mx-3 whitespace-nowrap">
+            <span className="text-sm">or</span>
+          </div>
+          <div className="flex border-gray-200 dark:border-gray-800 w-full border-t border-solid"></div>
+        </div>
+        <Button
+          className="w-full flex items-center justify-center gap-x-2.5"
+          type="submit"
+        >
+          <Chrome className="w-4 h-4" />
+          Continue with Google
         </Button>
-      </Form>
+        <div className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center">
+          <span>By signing in, you agree to our</span>
+          <Link to="/terms" className="text-primary font-medium">
+            <Button variant="secondary">Terms of Service</Button>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

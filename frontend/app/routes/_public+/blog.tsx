@@ -1,7 +1,7 @@
-export default function Home() {
+export default function Blog() {
   return (
     <div className="flex h-full items-center justify-center">
-      <h1 className="text-4xl font-bold">Home page</h1>
+      <h1 className="text-4xl font-bold">Blog page</h1>
     </div>
   );
 }

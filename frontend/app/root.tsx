@@ -14,7 +14,13 @@ import { Header } from "./components/Header";
 import { getOptionalUser } from "./server/auth.server";
 
 export const links: LinksFunction = () => [
-  { rel: "stylesheet", href: "/app/tailwind.css" },
+  {
+    rel: "stylesheet",
+    href:
+      process.env.NODE_ENV === "production"
+        ? "/build/tailwind.css"
+        : "/app/tailwind.css",
+  },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",

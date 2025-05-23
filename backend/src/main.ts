@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { getPublicDir, startDevServer } from '@thiez-64/frontend';
 import { urlencoded } from 'body-parser';
 import { RedisStore } from 'connect-redis';
+import { Request, Response } from 'express';
 
 import session from 'express-session';
 import Redis from 'ioredis';
@@ -72,6 +73,11 @@ async function bootstrap() {
   const selectedPort = process.env.PORT || 3000;
 
   console.log(`Server is running on port http://localhost:${selectedPort}`);
+
+  // Intercepter les appels vers /.well-known/*
+  app.use('/.well-known', (_req: Request, res: Response) => {
+    res.status(404).send('Not found');
+  });
   await app.listen(selectedPort);
 }
 bootstrap();

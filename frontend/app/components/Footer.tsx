@@ -7,11 +7,13 @@ export const Footer = () => {
       <Link to="/">
         <div className="w-full h-auto max-w-[120px] text-black">LOGO</div>
       </Link>
-      <FooterLinkItem href="/" icon={<Search />} label="Rechercher" />
-      <FooterLinkItem href="/" icon={<Users />} label="Offreurs" />
+      <div>
+        <FooterLinkItem href="/" icon={<Search />} label="Rechercher" />
+        <FooterLinkItem href="/" icon={<Users />} label="Offreurs" />
 
-      <FooterLinkItem href="/" icon={<Star />} label="Favoris" />
-      <FooterLinkItem href="/" icon={<Mail />} label="Message" />
+        <FooterLinkItem href="/" icon={<Star />} label="Favoris" />
+        <FooterLinkItem href="/" icon={<Mail />} label="Message" />
+      </div>
     </footer>
   );
 };

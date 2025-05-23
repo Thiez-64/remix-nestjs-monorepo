@@ -6,7 +6,8 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "@remix-run/node";
-import { Form, useActionData, useNavigation } from "@remix-run/react";
+import { Form, Link, useActionData, useNavigation } from "@remix-run/react";
+import { Chrome } from "lucide-react";
 import { z } from "zod";
 import { Field } from "~/components/forms";
 import { Button } from "~/components/ui/button";
@@ -96,48 +97,79 @@ export default function Register() {
 
   const isLoading = useNavigation().state === "submitting";
   return (
-    <div className="max-w-[600px] mx-auto">
-      <h1>Création de compte</h1>
-      <Form
-        {...getFormProps(form)}
-        method="POST"
-        reloadDocument
-        className="flex flex-col gap-2"
-      >
-        <Field
-          inputProps={getInputProps(fields.firstname, {
-            type: "text",
-          })}
-          labelsProps={{
-            children: "Votre prénom",
-          }}
-          errors={fields.firstname.errors}
-        />
+    <div className="rounded-lg divide-y divide-gray-200 dark:divide-gray-800 ring-1 ring-gray-200 dark:ring-gray-800 shadow bg-white dark:bg-background max-w-sm mx-auto w-full mt-14">
+      <div className="flex flex-col gap-4 border border-gray-200 rounded-lg p-4">
+        <div className="flex flex-col gap-2 items-center">
+          <h1 className="text-4xl font-bold">Create an account</h1>
+          <div className="flex items-center">
+            <span>Already have an account?</span>
+            <Link to="/login">
+              <Button variant="secondary">Login</Button>
+            </Link>
+          </div>
+        </div>
 
-        <Field
-          inputProps={getInputProps(fields.email, {
-            type: "email",
-          })}
-          labelsProps={{
-            children: "Adresse e-email",
-          }}
-          errors={fields.email.errors}
-        />
+        <Form
+          {...getFormProps(form)}
+          method="POST"
+          reloadDocument
+          className="flex flex-col gap-2"
+        >
+          <Field
+            inputProps={getInputProps(fields.firstname, {
+              type: "text",
+            })}
+            labelsProps={{
+              children: "Name",
+            }}
+            errors={fields.firstname.errors}
+          />
 
-        <Field
-          inputProps={getInputProps(fields.password, {
-            type: "password",
-          })}
-          labelsProps={{
-            children: "Mot de passe",
-          }}
-          errors={fields.password.errors}
-        />
+          <Field
+            inputProps={getInputProps(fields.email, {
+              type: "email",
+            })}
+            labelsProps={{
+              children: "Email",
+            }}
+            errors={fields.email.errors}
+          />
 
-        <Button disabled={isLoading} className="ml-auto" type="submit">
-          Je créer mon compte
+          <Field
+            inputProps={getInputProps(fields.password, {
+              type: "password",
+            })}
+            labelsProps={{
+              children: "Password",
+            }}
+            errors={fields.password.errors}
+          />
+
+          <Button disabled={isLoading} className="w-full" type="submit">
+            Continue
+          </Button>
+        </Form>
+        <div className="flex items-center align-center text-center w-full flex-row">
+          <div className="flex border-gray-200 dark:border-gray-800 w-full border-t border-solid"></div>
+          <div className="font-medium text-gray-700 dark:text-gray-200 flex mx-3 whitespace-nowrap">
+            <span className="text-sm">or</span>
+          </div>
+          <div className="flex border-gray-200 dark:border-gray-800 w-full border-t border-solid"></div>
+        </div>
+        <Button
+          className="w-full flex items-center justify-center gap-x-2.5"
+          type="submit"
+        >
+          <Chrome className="w-4 h-4" />
+          Continue with Google
         </Button>
-      </Form>
+        <div className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center">
+          <span>By signing in, you agree to our</span>
+          <Link to="/terms" className="text-primary font-medium">
+            <Button variant="secondary">Terms of Service</Button>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

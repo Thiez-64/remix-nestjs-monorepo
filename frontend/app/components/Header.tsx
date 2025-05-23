@@ -1,6 +1,7 @@
 import { Link } from "@remix-run/react";
-import { Bell, ReceiptEuro, UserRound } from "lucide-react";
+import { Bell } from "lucide-react";
 import { useOptionalUser } from "~/root";
+import { Button } from "./ui/button";
 
 export const Header = () => {
   const user = useOptionalUser();
@@ -10,30 +11,29 @@ export const Header = () => {
         <Link to="/">
           <div className="w-full h-auto max-w-[120px] text-black">LOGO</div>
         </Link>
-        <div className="flex gap-2 text-black">
+        <div className="flex gap-4 text-black">
+          <div className="flex gap-4 items-center">
+            <Link to="/blog">Blog</Link>
+            <Link to="/home">What's new</Link>
+          </div>
           {user ? (
-            <>
-              <span>{user.name}</span>
-              <Link to="/">
-                <ReceiptEuro className="flex-shrink-0" />
+            <div className="flex gap-4 items-center">
+              <Link to="/profile">
+                <span>Hi {user.name} !</span>
               </Link>
-              <Link to="/">
+              <Link to="/notifications">
                 <Bell className="fill-white flex-shrink-0" />
               </Link>
-              <Link to="/profile">
-                <UserRound className="flex-shrink-0" />
-              </Link>
               <form method="POST" action="/auth/logout">
-                <button type="submit">Se déconnecter</button>
+                <Button type="submit" variant="outline">
+                  Logout
+                </Button>
               </form>
-            </>
+            </div>
           ) : (
             <>
               <Link className="text-xs" to="/login">
-                Connexion
-              </Link>
-              <Link className="text-xs" to="/register">
-                Inscription
+                <Button variant="default">Login</Button>
               </Link>
             </>
           )}

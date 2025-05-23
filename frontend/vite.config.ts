@@ -26,8 +26,13 @@ export default defineConfig({
     tsconfigPaths(),
     remix({
       ignoredRouteFiles: ["**/*"],
+      ssr: true,
       future: {
         v3_fetcherPersist: true,
+        v3_lazyRouteDiscovery: true,
+        v3_relativeSplatPath: true,
+        v3_singleFetch: true,
+        v3_throwAbortReason: true,
       },
 
       // When running locally in development mode, we use the built in remix

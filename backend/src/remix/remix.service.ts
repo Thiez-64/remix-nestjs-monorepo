@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 @Injectable()
 export class RemixService {
   constructor(
-    private readonly prisma: PrismaService,
+    public readonly prisma: PrismaService,
     public readonly auth: AuthService,
   ) {}
 
