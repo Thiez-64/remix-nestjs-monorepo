@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
+import { EmailModule } from '../email/email.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import { CookieSerializer } from './cookie-serialized';
@@ -13,6 +14,7 @@ import { LocalStrategy } from './local.strategy';
       property: 'user',
       session: true,
     }),
+    EmailModule,
   ],
   controllers: [],
   providers: [

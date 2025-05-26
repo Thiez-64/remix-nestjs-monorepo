@@ -1,9 +1,14 @@
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import {
+  getFormProps,
+  getInputProps,
+  SubmissionResult,
+  useForm,
+} from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { ActionFunctionArgs, json, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, useActionData, useLoaderData } from "@remix-run/react";
 import { ShieldUser, User } from "lucide-react";
-import z from "zod";
+import { z } from "zod";
 import { Field } from "~/components/forms";
 import { Button } from "~/components/ui/button";
 import { requireUser } from "~/server/auth.server";
@@ -25,9 +30,73 @@ export const EditProfileSchema = z.object({
   name: z.string({ required_error: "Le prénom est obligatoire." }),
 });
 
+const ChangePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+type ActionData = {
+  result: SubmissionResult<string[]>;
+  message?: string;
+};
+
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const user = await requireUser({ context });
+  if (!user) {
+    throw new Error("User not found");
+  }
   const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "password") {
+    const submission = await parseWithZod(formData, {
+      schema: ChangePasswordSchema,
+    });
+
+    if (submission.status !== "success") {
+      return json<ActionData>({ result: submission.reply() }, { status: 400 });
+    }
+
+    const { currentPassword, newPassword } = submission.value;
+
+    if (!context.user) {
+      throw new Error("User not found");
+    }
+
+    const result = await context.remixService.auth.changePassword({
+      userId: context.user.id,
+      currentPassword,
+      newPassword,
+    });
+
+    if (result.error) {
+      return json<ActionData>(
+        {
+          result: submission.reply({
+            fieldErrors: {
+              currentPassword: [result.message || "An error occurred"],
+            },
+          }),
+        },
+        { status: 400 }
+      );
+    }
+
+    return json<ActionData>({
+      result: submission.reply(),
+      message: "Password changed successfully",
+    });
+  }
+
+  if (!context.user) {
+    throw new Error("User not found");
+  }
 
   const submission = await parseWithZod(formData, {
     async: true,
@@ -51,17 +120,21 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       }
     }),
   });
+
   if (submission.status !== "success") {
-    return json({ result: submission.reply() }, { status: 400 });
+    return json<ActionData>({ result: submission.reply() }, { status: 400 });
   }
 
   await editProfile({
     context,
     profileData: submission.value,
-    userId: user.id,
+    userId: context.user.id,
   });
 
-  return json({ result: submission.reply() });
+  return json<ActionData>({
+    result: submission.reply(),
+    message: "Profile updated successfully",
+  });
 };
 
 export default function Profile() {
@@ -79,6 +152,13 @@ export default function Profile() {
     },
   });
 
+  const [passwordForm, passwordFields] = useForm({
+    constraint: getZodConstraint(ChangePasswordSchema),
+    onValidate({ formData }) {
+      return parseWithZod(formData, { schema: ChangePasswordSchema });
+    },
+    lastResult: actionData?.result,
+  });
   return (
     <div className="bg-white dark:bg-background max-w-sm mx-auto w-full mt-14 flex flex-col gap-4">
       <div className="flex flex-col gap-4 border border-gray-200 rounded-lg p-4">
@@ -90,10 +170,10 @@ export default function Profile() {
         <Form
           {...getFormProps(form)}
           method="POST"
-          // action='/auth/login'
           reloadDocument
           className="flex flex-col gap-4"
         >
+          <input type="hidden" name="intent" value="profile" />
           <Field
             inputProps={getInputProps(fields.name, {
               type: "text",
@@ -121,13 +201,56 @@ export default function Profile() {
         <div className="flex flex-col gap-2 items-center">
           <ShieldUser className="w-10 h-10" />
           <h1 className="text-4xl font-bold text-center">
-            Reset your password
+            Change your password
           </h1>
           <span className="text-center">
-            We are going to send you an email to change your password.
+            Enter your current password and choose a new one.
           </span>
         </div>
-        <Button className="w-full">Reset</Button>
+        <Form
+          {...getFormProps(passwordForm)}
+          method="POST"
+          className="space-y-4"
+        >
+          <input type="hidden" name="intent" value="password" />
+          <Field
+            inputProps={getInputProps(passwordFields.currentPassword, {
+              type: "password",
+            })}
+            labelsProps={{
+              children: "Current Password",
+            }}
+            errors={passwordFields.currentPassword.errors}
+          />
+          <Field
+            inputProps={getInputProps(passwordFields.newPassword, {
+              type: "password",
+            })}
+            labelsProps={{
+              children: "New Password",
+            }}
+            errors={passwordFields.newPassword.errors}
+          />
+          <Field
+            inputProps={getInputProps(passwordFields.confirmPassword, {
+              type: "password",
+            })}
+            labelsProps={{
+              children: "Confirm New Password",
+            }}
+            errors={passwordFields.confirmPassword.errors}
+          />
+
+          {actionData?.message && (
+            <div className="text-sm text-green-600 dark:text-green-400">
+              {actionData.message}
+            </div>
+          )}
+
+          <Button className="w-full" type="submit">
+            Change Password
+          </Button>
+        </Form>
       </div>
     </div>
   );

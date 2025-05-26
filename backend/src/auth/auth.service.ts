@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { createId } from '@paralleldrive/cuid2';
 import { compare, hash } from 'bcryptjs';
+import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 const PASSWORD_SALT = 10;
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   public readonly checkIfUserExists = async ({
     email,
@@ -94,5 +98,121 @@ export class AuthService {
         sessionToken: true,
       },
     });
+  };
+
+  public readonly generatePasswordResetToken = async ({
+    email,
+  }: {
+    email: string;
+  }) => {
+    // Générer un token unique et sécurisé
+    const resetToken = createId();
+
+    // Stocker le token dans la base de données avec une expiration
+    await this.prisma.passwordResetToken.create({
+      data: {
+        token: resetToken,
+        user: {
+          connect: {
+            email,
+          },
+        },
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 heures
+      },
+    });
+
+    // Envoyer l'email
+    await this.emailService.sendPasswordResetEmail({
+      email,
+      resetToken,
+    });
+
+    return resetToken;
+  };
+
+  public readonly validatePasswordResetToken = async ({
+    token,
+  }: {
+    token: string;
+  }) => {
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!resetToken) {
+      return { error: true, message: 'Token invalide' };
+    }
+
+    if (resetToken.used) {
+      return { error: true, message: 'Ce token a déjà été utilisé' };
+    }
+
+    if (resetToken.expiresAt < new Date()) {
+      return { error: true, message: 'Le token a expiré' };
+    }
+
+    return { error: false, user: resetToken.user };
+  };
+
+  public readonly resetPassword = async ({
+    token,
+    newPassword,
+  }: {
+    token: string;
+    newPassword: string;
+  }) => {
+    const validation = await this.validatePasswordResetToken({ token });
+    if (validation.error || !validation.user) {
+      return validation;
+    }
+
+    const hashedPassword = await hash(newPassword, PASSWORD_SALT);
+
+    // Mettre à jour le mot de passe
+    await this.prisma.user.update({
+      where: { id: validation.user.id },
+      data: { password: hashedPassword },
+    });
+
+    // Marquer le token comme utilisé
+    await this.prisma.passwordResetToken.update({
+      where: { token },
+      data: { used: true },
+    });
+
+    return { error: false };
+  };
+
+  public readonly changePassword = async ({
+    userId,
+    currentPassword,
+    newPassword,
+  }: {
+    userId: string;
+    currentPassword: string;
+    newPassword: string;
+  }) => {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { password: true },
+    });
+
+    if (!user) {
+      return { error: true, message: 'User not found' };
+    }
+
+    const isPasswordValid = await compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return { error: true, message: 'Current password is incorrect' };
+    }
+
+    const hashedPassword = await hash(newPassword, PASSWORD_SALT);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { error: false };
   };
 }

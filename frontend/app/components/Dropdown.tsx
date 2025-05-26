@@ -10,11 +10,11 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export const Dropdown = ({ porfileName }: { porfileName: string }) => {
+export const Dropdown = ({ profileName }: { profileName: string }) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost">Hi {porfileName}!</Button>
+        <Button variant="ghost">Hi {profileName}!</Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56">
         <DropdownMenuLabel>

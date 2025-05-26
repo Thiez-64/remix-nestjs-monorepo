@@ -27,7 +27,7 @@ export const Header = () => {
         <div className="flex items-center justify-end lg:flex-1 gap-4">
           <div className="flex gap-4 items-center">
             <Link to="/blog">Blog</Link>
-            <Link to="/home">What&aposs new</Link>
+            <Link to="/home">What&apos;s new</Link>
           </div>
           {user ? (
             <div className="flex gap-4 items-center">
@@ -39,7 +39,7 @@ export const Header = () => {
                 </AvatarFallback>
               </Avatar>
 
-              <Dropdown porfileName={user.name ?? ""} />
+              <Dropdown profileName={user.name ?? ""} />
             </div>
           ) : (
             <>

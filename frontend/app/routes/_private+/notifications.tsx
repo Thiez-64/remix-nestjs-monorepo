@@ -1,3 +1,7 @@
+export const loader = () => {
+  return null;
+};
+
 export default function Notifications() {
   return (
     <div className="flex h-full items-center justify-center">

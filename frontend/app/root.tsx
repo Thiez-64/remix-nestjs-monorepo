@@ -36,7 +36,7 @@ export const links: LinksFunction = () => [
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await getOptionalUser({ context });
-  return json({ user });
+  return json({ user: user || null });
 };
 
 export const useOptionalUser = () => {
@@ -50,7 +50,11 @@ export const useOptionalUser = () => {
 declare module "@remix-run/node" {
   interface AppLoadContext {
     remixService: RemixService;
-    user: unknown;
+    user: {
+      id: string;
+      email: string;
+      name: string | null;
+    } | null;
   }
 }
 

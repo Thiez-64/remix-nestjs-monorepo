@@ -1,9 +1,4 @@
-import { json } from "@remix-run/node";
-
-export const loader = async () => {
-  // TODO: Add your data fetching logic here
-  return json({ menu: [] });
-};
+export const loader = () => {};
 
 export default function Menu() {
   return (
