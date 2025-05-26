@@ -35,6 +35,7 @@ export class AuthService {
         name: true,
         email: true,
         password: true,
+        role: true,
       },
     });
     if (!existingUser) {
@@ -80,6 +81,7 @@ export class AuthService {
         id: true,
         name: true,
         email: true,
+        role: true,
       },
     });
   };

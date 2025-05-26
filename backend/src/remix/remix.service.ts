@@ -16,7 +16,52 @@ export class RemixService {
         id: true,
         name: true,
         email: true,
+        role: true,
       },
     });
   };
+
+  async getActions() {
+    const actions = await this.prisma.action.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        date: 'desc',
+      },
+    });
+
+    return actions.map((action) => ({
+      id: action.id,
+      title: action.title,
+      description: action.description,
+      date: new Date(action.date),
+      userId: action.userId,
+      userName: action.user.name,
+    }));
+  }
+
+  async createAction(data: {
+    title: string;
+    description: string;
+    date: Date;
+    userId: string;
+  }) {
+    return await this.prisma.action.create({
+      data,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
 }

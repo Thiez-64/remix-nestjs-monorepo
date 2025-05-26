@@ -17,11 +17,42 @@ export const Header = () => {
         </div>
         {user ? (
           <ul className="items-center gap-x-8 hidden md:flex">
-            <li className="relative">
-              <Link to="/menu">menu</Link>
-            </li>
-            <li className="relative">option 1</li>
-            <li className="relative">option 2</li>
+            {user.role === "SUPER_ADMIN" && (
+              <>
+                <li className="relative">
+                  <Link to="/admin">Admin</Link>
+                </li>
+                <li className="relative">
+                  <Link to="/users">Users</Link>
+                </li>
+              </>
+            )}
+            {user.role === "ADMIN" && (
+              <>
+                <li className="relative">
+                  <Link to="/dashboard">Dashboard</Link>
+                </li>
+                <li className="relative">
+                  <Link to="/profile">Profile</Link>
+                </li>
+              </>
+            )}
+            {user.role === "USER" && (
+              <>
+                <li className="relative">
+                  <Link to="/dashboard">Dashboard</Link>
+                </li>
+                <li className="relative">
+                  <Link to="/orders">Orders</Link>
+                </li>
+                <li className="relative">
+                  <Link to="/documents">Documents</Link>
+                </li>
+                <li className="relative">
+                  <Link to="/actions">Actions</Link>
+                </li>
+              </>
+            )}
           </ul>
         ) : null}
         <div className="flex items-center justify-end lg:flex-1 gap-4">

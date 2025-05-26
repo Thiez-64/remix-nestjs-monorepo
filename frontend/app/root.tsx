@@ -54,6 +54,7 @@ declare module "@remix-run/node" {
       id: string;
       email: string;
       name: string | null;
+      role: "USER" | "ADMIN" | "SUPER_ADMIN";
     } | null;
   }
 }

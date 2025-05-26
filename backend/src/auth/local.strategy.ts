@@ -26,6 +26,7 @@ export class LocalStrategy extends PassportStrategy(Strategy, 'local') {
           select: {
             email: true,
             id: true,
+            role: true,
           },
         },
       },
@@ -45,6 +46,6 @@ export class LocalStrategy extends PassportStrategy(Strategy, 'local') {
       },
     });
 
-    return { email: user.email, id: user.id };
+    return { email: user.email, id: user.id, role: user.role };
   }
 }
