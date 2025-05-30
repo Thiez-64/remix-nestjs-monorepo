@@ -52,7 +52,7 @@ export function TextareaField({
   const errorId = errors?.length ? `${id}-error` : undefined;
   return (
     <div className={className}>
-      <Label htmlFor={id} {...labelProps} />
+      <Label htmlFor={id} {...labelProps} className="text-gray-500 text-sm" />
       <Textarea
         id={id}
         aria-invalid={errorId ? true : undefined}

@@ -9,9 +9,9 @@ import {
 import { Form, Link, useActionData } from "@remix-run/react";
 import { Chrome, LockKeyhole } from "lucide-react";
 import { z } from "zod";
-import { Field } from "~/components/forms";
-import { Button } from "~/components/ui/button";
-import { getOptionalUser } from "~/server/auth.server";
+import { Field } from "../../components/forms";
+import { Button } from "../../components/ui/button";
+import { getOptionalUser } from "../../server/auth.server";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await getOptionalUser({ context });
@@ -23,7 +23,6 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const formData = await request.formData();
-  console.log("formData", Object.fromEntries(formData));
 
   const submission = await parseWithZod(formData, {
     async: true,
@@ -78,6 +77,7 @@ const LoginSchema = z.object({
 
 export default function Login() {
   const actionData = useActionData<typeof action>();
+
   const [form, fields] = useForm({
     constraint: getZodConstraint(LoginSchema),
     onValidate({ formData }) {

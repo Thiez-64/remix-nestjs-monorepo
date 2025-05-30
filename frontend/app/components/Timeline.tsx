@@ -1,11 +1,12 @@
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Action } from "~/server/action.server";
 
-export function Timeline({ actions }) {
+export function Timeline({ actions }: { actions: JsonifyObject<Action>[] }) {
   return (
     <div className="flow-root">
       <ul className="-mb-8">
-        {actions.map((action, actionIdx) => (
+        {actions?.map((action, actionIdx) => (
           <li key={action.id}>
             <div className="relative pb-8">
               {actionIdx !== actions.length - 1 ? (
