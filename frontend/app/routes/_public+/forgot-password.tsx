@@ -2,7 +2,6 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import {
   ActionFunctionArgs,
-  json,
   LoaderFunctionArgs,
   redirect,
 } from "@remix-run/node";
@@ -11,7 +10,11 @@ import { ShieldUser } from "lucide-react";
 import { z } from "zod";
 import { Field } from "~/components/forms";
 import { Button } from "~/components/ui/button";
-import { getOptionalUser } from "~/server/auth.server";
+import {
+  checkIfUserExists,
+  generatePasswordResetToken,
+  getOptionalUser,
+} from "~/server/auth.server";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await getOptionalUser({ context });
@@ -33,7 +36,8 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     schema: ForgotPasswordSchema.superRefine(async (data) => {
       const { email } = data;
 
-      const existingUser = await context.remixService.auth.checkIfUserExists({
+      const existingUser = await checkIfUserExists({
+        context,
         email,
         withPassword: false,
         password: "",
@@ -42,10 +46,10 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       // On ne veut pas révéler si l'email existe ou non
       if (existingUser.error === false) {
         // L'utilisateur existe, on génère un token
-        const resetToken =
-          await context.remixService.auth.generatePasswordResetToken({
-            email,
-          });
+        const resetToken = await generatePasswordResetToken({
+          context,
+          email,
+        });
 
         // TODO: Envoyer l'email avec le token
         console.log("Reset token:", resetToken);
@@ -54,22 +58,31 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   });
 
   if (submission.status !== "success") {
-    return json(
-      {
+    return new Response(
+      JSON.stringify({
         result: submission.reply(),
         message:
           "If an account exists with this email, a reset link has been sent.",
-      } as const,
-      { status: 400 }
+      }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
 
   // On retourne toujours un succès avec le même message
-  return json({
-    result: submission.reply(),
-    message:
-      "If an account exists with this email, a reset link has been sent.",
-  } as const);
+  return new Response(
+    JSON.stringify({
+      result: submission.reply(),
+      message:
+        "If an account exists with this email, a reset link has been sent.",
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 };
 
 export default function ForgotPassword() {

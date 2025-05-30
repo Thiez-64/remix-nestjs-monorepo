@@ -3,7 +3,6 @@ import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import {
   ActionFunctionArgs,
   LoaderFunctionArgs,
-  json,
   redirect,
 } from "@remix-run/node";
 import { Form, useActionData } from "@remix-run/react";
@@ -11,7 +10,7 @@ import { LockKeyhole } from "lucide-react";
 import { z } from "zod";
 import { Field } from "~/components/forms";
 import { Button } from "~/components/ui/button";
-import { getOptionalUser } from "~/server/auth.server";
+import { getOptionalUser, resetPassword } from "~/server/auth.server";
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   const user = await getOptionalUser({ context });
@@ -37,7 +36,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
     return redirect(`/forgot-password?error=${validation.message}`);
   }
 
-  return json({ token });
+  return { token };
 };
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
@@ -55,18 +54,25 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   });
 
   if (submission.status !== "success") {
-    return json({ result: submission.reply() }, { status: 400 });
+    return new Response(JSON.stringify({ result: submission.reply() }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const { password } = submission.value;
 
-  const result = await context.remixService.auth.resetPassword({
+  const result = await resetPassword({
+    context,
     token,
     newPassword: password,
   });
 
   if (result.error) {
-    return json({ result: submission.reply() }, { status: 400 });
+    return new Response(JSON.stringify({ result: submission.reply() }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   return redirect("/login?message=Your password has been reset");

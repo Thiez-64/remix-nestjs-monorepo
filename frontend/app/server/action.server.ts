@@ -1,24 +1,12 @@
 import { type AppLoadContext } from "@remix-run/node";
 
-export type Action = {
-  id: string;
-  title: string;
-  description: string;
-  date: Date;
-  quantity: number;
-  user: {
-    id: string;
-    name: string | null;
-  };
-};
-
 export const getActionsByUser = async ({
   context,
   userId,
 }: {
   context: AppLoadContext;
   userId: string;
-}): Promise<Action[]> => {
+}) => {
   return await context.remixService.prisma.action.findMany({
     where: {
       userId,

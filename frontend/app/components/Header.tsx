@@ -30,10 +30,7 @@ export const Header = () => {
             {user.role === "ADMIN" && (
               <>
                 <li className="relative">
-                  <Link to="/dashboard">Dashboard</Link>
-                </li>
-                <li className="relative">
-                  <Link to="/profile">Profile</Link>
+                  <Link to="/menu">Menu</Link>
                 </li>
               </>
             )}

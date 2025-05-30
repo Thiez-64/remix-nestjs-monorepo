@@ -56,3 +56,102 @@ export const requireRole = async ({
 
   return user;
 };
+
+export const resetPassword = async ({
+  context,
+  token,
+  newPassword,
+}: {
+  context: AppLoadContext;
+  token: string;
+  newPassword: string;
+}) => {
+  return await context.remixService.auth.resetPassword({
+    token,
+    newPassword,
+  });
+};
+
+export const authenticateUser = async ({
+  context,
+  email,
+}: {
+  context: AppLoadContext;
+  email: string;
+}) => {
+  return await context.remixService.auth.authenticateUser({
+    email,
+  });
+};
+
+export const checkIfUserExists = async ({
+  context,
+  email,
+  withPassword,
+  password,
+}: {
+  context: AppLoadContext;
+  email: string;
+  withPassword: boolean;
+  password: string;
+}) => {
+  return await context.remixService.auth.checkIfUserExists({
+    email,
+    withPassword,
+    password,
+  });
+};
+
+export const createUserAndAuthenticate = async ({
+  context,
+  email,
+  name,
+  password,
+}: {
+  context: AppLoadContext;
+  email: string;
+  name: string;
+  password: string;
+}) => {
+  const { email: createdUserEmail } =
+    await context.remixService.auth.createUser({
+      email,
+      name,
+      password,
+    });
+
+  const { sessionToken } = await authenticateUser({
+    context,
+    email: createdUserEmail,
+  });
+
+  return { sessionToken };
+};
+
+export const generatePasswordResetToken = async ({
+  context,
+  email,
+}: {
+  context: AppLoadContext;
+  email: string;
+}) => {
+  return await context.remixService.auth.generatePasswordResetToken({ email });
+};
+
+export const changePassword = async ({
+  context,
+  userId,
+  currentPassword,
+  newPassword,
+}: {
+  context: AppLoadContext;
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+}) => {
+  return await context.remixService.auth.changePassword({
+    userId,
+    currentPassword,
+    newPassword,
+  });
+};

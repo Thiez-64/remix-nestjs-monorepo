@@ -1,22 +1,21 @@
-import {
-  getFormProps,
-  getInputProps,
-  SubmissionResult,
-  useForm,
-} from "@conform-to/react";
+import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
-import { ActionFunctionArgs, json, LoaderFunctionArgs } from "@remix-run/node";
+import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, useActionData, useLoaderData } from "@remix-run/react";
 import { ShieldUser, User } from "lucide-react";
 import { z } from "zod";
 import { Field } from "~/components/forms";
 import { Button } from "~/components/ui/button";
-import { requireUser } from "~/server/auth.server";
+import {
+  changePassword,
+  checkIfUserExists,
+  requireUser,
+} from "~/server/auth.server";
 import { editProfile } from "~/server/profile.server";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await requireUser({ context });
-  return json({ user });
+  return { user };
 };
 
 export const EditProfileSchema = z.object({
@@ -41,11 +40,6 @@ const ChangePasswordSchema = z
     path: ["confirmPassword"],
   });
 
-type ActionData = {
-  result: SubmissionResult<string[]>;
-  message?: string;
-};
-
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const user = await requireUser({ context });
   if (!user) {
@@ -56,11 +50,15 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
   if (intent === "password") {
     const submission = await parseWithZod(formData, {
+      async: true,
       schema: ChangePasswordSchema,
     });
 
     if (submission.status !== "success") {
-      return json<ActionData>({ result: submission.reply() }, { status: 400 });
+      return new Response(JSON.stringify({ result: submission.reply() }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const { currentPassword, newPassword } = submission.value;
@@ -69,29 +67,30 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       throw new Error("User not found");
     }
 
-    const result = await context.remixService.auth.changePassword({
+    const result = await changePassword({
+      context,
       userId: context.user.id,
       currentPassword,
       newPassword,
     });
 
     if (result.error) {
-      return json<ActionData>(
-        {
-          result: submission.reply({
-            fieldErrors: {
-              currentPassword: [result.message || "An error occurred"],
-            },
-          }),
-        },
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ result: submission.reply() }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    return json<ActionData>({
-      result: submission.reply(),
-      message: "Password changed successfully",
-    });
+    return new Response(
+      JSON.stringify({
+        result: submission.reply(),
+        message: "Password changed successfully",
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   if (!context.user) {
@@ -104,11 +103,13 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       const { email } = data;
 
       if (email !== user.email) {
-        const existingUser = await context.remixService.auth.checkIfUserExists({
+        const existingUser = await checkIfUserExists({
+          context,
           email,
           withPassword: false,
           password: "",
         });
+
         if (existingUser.error === false) {
           ctx.addIssue({
             code: "custom",
@@ -122,7 +123,10 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   });
 
   if (submission.status !== "success") {
-    return json<ActionData>({ result: submission.reply() }, { status: 400 });
+    return new Response(JSON.stringify({ result: submission.reply() }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   await editProfile({
@@ -131,10 +135,16 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     userId: context.user.id,
   });
 
-  return json<ActionData>({
-    result: submission.reply(),
-    message: "Profile updated successfully",
-  });
+  return new Response(
+    JSON.stringify({
+      result: submission.reply(),
+      message: "Profile updated successfully",
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 };
 
 export default function Profile() {

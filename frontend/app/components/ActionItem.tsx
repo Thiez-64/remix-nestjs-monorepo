@@ -1,9 +1,8 @@
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useState } from "react";
-import { Action } from "~/server/action.server";
 
-export default function ActionItem({ action }: { action: Action }) {
+export default function ActionItem({ action }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(action.title);
   const [editedDescription, setEditedDescription] = useState(

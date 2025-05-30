@@ -7,7 +7,6 @@ import {
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import {
   ActionFunctionArgs,
-  json,
   redirect,
   type LoaderFunctionArgs,
 } from "@remix-run/node";
@@ -16,13 +15,12 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useState } from "react";
 import { z } from "zod";
+import ActionItem from "~/components/ActionItem";
 import { Field, TextareaField } from "../../components/forms";
-import { Timeline } from "../../components/Timeline";
 import { Button } from "../../components/ui/button";
 import { Calendar } from "../../components/ui/calendar";
 import { createAction, getActionsByUser } from "../../server/action.server";
 import { getOptionalUser, requireRole } from "../../server/auth.server";
-import ActionItem from "~/components/ActionItem";
 
 // Fonction pour vérifier si le titre est unique
 async function checkTitleUniqueness(title: string): Promise<boolean> {
@@ -45,7 +43,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   }
   const actions = await getActionsByUser({ context, userId: user.id });
 
-  return json({ user, actions });
+  return { user, actions };
 };
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
@@ -78,7 +76,10 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   });
 
   if (submission.status !== "success") {
-    return json({ result: submission.reply() }, { status: 400 });
+    return new Response(JSON.stringify({ result: submission.reply() }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const user = await requireRole({ context, role: "USER" });
@@ -94,7 +95,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     },
   });
 
-  return json({ action });
+  return { action };
 };
 
 const actionSchema = z.object({

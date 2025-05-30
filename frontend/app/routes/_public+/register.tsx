@@ -1,7 +1,6 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import {
-  json,
   redirect,
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
@@ -11,7 +10,11 @@ import { Chrome } from "lucide-react";
 import { z } from "zod";
 import { Field } from "~/components/forms";
 import { Button } from "~/components/ui/button";
-import { getOptionalUser } from "~/server/auth.server";
+import {
+  checkIfUserExists,
+  createUserAndAuthenticate,
+  getOptionalUser,
+} from "~/server/auth.server";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await getOptionalUser({ context });
@@ -42,7 +45,8 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     schema: RegisterSchema.superRefine(async (data, ctx) => {
       const { email } = data;
 
-      const existingUser = await context.remixService.auth.checkIfUserExists({
+      const existingUser = await checkIfUserExists({
+        context,
         email,
         withPassword: false,
         password: "",
@@ -59,27 +63,20 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   });
 
   if (submission.status !== "success") {
-    return json(
-      { result: submission.reply() },
-      {
-        status: 400,
-      }
-    );
+    return new Response(JSON.stringify({ result: submission.reply() }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
   const { email, firstname, password } = submission.value;
 
-  const { email: createdUserEmail } =
-    await context.remixService.auth.createUser({
-      email,
-      name: firstname,
-      password,
-    });
-
-  const { sessionToken } = await context.remixService.auth.authenticateUser({
-    email: createdUserEmail,
+  const { sessionToken } = await createUserAndAuthenticate({
+    context,
+    email,
+    name: firstname,
+    password,
   });
 
-  // Connecter l'utilisateur associé à l'email
   return redirect(`/authenticate?token=${sessionToken}`);
 };
 
