@@ -1,224 +1,143 @@
-import {
-  getFormProps,
-  getInputProps,
-  getTextareaProps,
-  useForm,
-} from "@conform-to/react";
+import { useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import {
-  ActionFunctionArgs,
-  redirect,
+  json,
+  type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "@remix-run/node";
-import { Form, useActionData, useLoaderData } from "@remix-run/react";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-import { useState } from "react";
+import { useActionData, useLoaderData } from "@remix-run/react";
+import { Plus } from "lucide-react";
 import { z } from "zod";
-import ActionItem from "~/components/ActionItem";
-import { Field, TextareaField } from "../../components/forms";
-import { Button } from "../../components/ui/button";
-import { Calendar } from "../../components/ui/calendar";
-import { createAction, getActionsByUser } from "../../server/action.server";
-import { getOptionalUser, requireRole } from "../../server/auth.server";
+import { columnsActions } from "~/components/ColumnsActions";
+import { CreateActionDialog } from "~/components/CreateActionDialog";
+import { Button } from "~/components/ui/button";
+import { DataTable } from "~/components/ui/data-table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { createAction } from "~/server/action.server";
+import { requireUser } from "~/server/auth.server";
 
-// Fonction pour vérifier si le titre est unique
-async function checkTitleUniqueness(title: string): Promise<boolean> {
-  // Simule une vérification dans la base de données
-  const existingTitles = ["Action 1", "Action 2"]; // Titres existants
-  return !existingTitles.includes(title); // Retourne true si le titre est unique
-}
-
-// Fonction pour vérifier si une date est un jour ouvrable
-async function checkIfBusinessDay(date: Date): Promise<boolean> {
-  // Vérifie si la date est un jour ouvrable (lundi à vendredi)
-  const day = date.getDay(); // 0 = Dimanche, 6 = Samedi
-  return day !== 0 && day !== 6; // Retourne true si ce n'est pas un week-end
-}
+export const CreateActionSchema = z.object({
+  wineType: z.enum(["ROUGE", "BLANC", "ROSE"]),
+  type: z.string(),
+  description: z.string(),
+  duration: z.coerce.number().min(1),
+});
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
-  const user = await getOptionalUser({ context });
-  if (user?.role !== "USER") {
-    return redirect("/unauthorized");
-  }
-  const actions = await getActionsByUser({ context, userId: user.id });
+  const user = await requireUser({ context });
+  const actions = await context.remixService.prisma.action.findMany({
+    where: { userId: user.id },
+    include: {
+      consumables: {
+        include: {
+          consumable: true,
+        },
+      },
+    },
+  });
 
-  return { user, actions };
+  return json({
+    actions: actions.map((action) => ({
+      id: action.id,
+      type: action.type,
+      description: action.description,
+      estimatedDuration: action.estimatedDuration,
+      wineType: action.wineType as "ROUGE" | "BLANC" | "ROSE",
+      needsPurchase: action.needsPurchase,
+      consumables: action.consumables.map((ac) => ({
+        name: ac.consumable.name,
+        quantity: ac.quantity,
+        unit: ac.consumable.unit,
+      })),
+    })),
+  });
 };
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
+  const user = await requireUser({ context });
   const formData = await request.formData();
-
   const submission = await parseWithZod(formData, {
     async: true,
-    schema: actionSchema.superRefine(async (data, ctx) => {
-      // Exemple de validation asynchrone : vérifier si le titre est unique
-      const { date, title } = data;
+    schema: CreateActionSchema.superRefine(async (data, ctx) => {
+      const existingAction = await context.remixService.prisma.action.findFirst(
+        {
+          where: { type: data.type, userId: user.id },
+        }
+      );
 
-      const isTitleUnique = await checkTitleUniqueness(title);
-      if (!isTitleUnique) {
+      if (existingAction) {
         ctx.addIssue({
           code: "custom",
-          path: ["title"],
-          message: "Le titre doit être unique.",
-        });
-      }
-
-      const isBusinessDay = await checkIfBusinessDay(date);
-      if (!isBusinessDay) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["date"],
-          message: "La date doit être un jour ouvrable.",
+          path: ["type"],
+          message: "Une action avec ce type existe déjà",
         });
       }
     }),
   });
 
   if (submission.status !== "success") {
-    return new Response(JSON.stringify({ result: submission.reply() }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return json(submission.reply());
   }
 
-  const user = await requireRole({ context, role: "USER" });
+  await createAction(context.remixService, user.id, submission.value);
 
-  const action = await createAction({
-    context,
-    data: {
-      title: submission.value.title,
-      description: submission.value.description,
-      date: submission.value.date,
-      quantity: submission.value.quantity,
-      userId: user.id,
-    },
-  });
-
-  return { action };
+  return json(submission.reply());
 };
 
-const actionSchema = z.object({
-  title: z
-    .string()
-    .min(3, "Le titre doit faire au moins 3 caractères")
-    .max(100, "Le titre ne doit pas dépasser 100 caractères"),
-  description: z
-    .string()
-    .min(10, "La description doit faire au moins 10 caractères")
-    .max(500, "La description ne doit pas dépasser 500 caractères"),
-  date: z.date().min(new Date(), "La date ne peut pas être dans le passé"),
-  quantity: z
-    .number()
-    .min(1, "La quantité doit être supérieure à 0")
-    .max(1000000, "La quantité ne peut pas dépasser 1000000"),
-});
-
 export default function Actions() {
-  const data = useLoaderData<typeof loader>();
-
+  const { actions } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    new Date()
-  );
 
   const [form, fields] = useForm({
-    constraint: getZodConstraint(actionSchema),
+    id: "create-action",
+    constraint: getZodConstraint(CreateActionSchema),
     onValidate({ formData }) {
-      return parseWithZod(formData, { schema: actionSchema });
+      return parseWithZod(formData, { schema: CreateActionSchema });
     },
-    lastResult:
-      actionData && "result" in actionData ? actionData.result : undefined,
+    lastResult: actionData,
   });
 
+  const redWineActions = actions.filter(
+    (action) => action.wineType === "ROUGE"
+  );
+  const whiteWineActions = actions.filter(
+    (action) => action.wineType === "BLANC"
+  );
+  const roseWineActions = actions.filter(
+    (action) => action.wineType === "ROSE"
+  );
+
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Déclarer une action</h1>
-      <div className="flex flex-row justify-between">
-        <div className="flex flex-row gap-4">
-          <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-bold mb-6">Sélectionner une date</h2>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => {
-                setSelectedDate(date);
-              }}
-              locale={fr}
-            />
-          </div>
-
-          <div className="flex flex-col gap-4 min-w-80">
-            <h2 className="text-2xl font-bold mb-6">Déclarer une action</h2>
-            <Form method="POST" {...getFormProps(form)} className="space-y-4">
-              <input
-                type="hidden"
-                name="date"
-                value={selectedDate?.toISOString() || ""}
-              />
-
-              <Field
-                labelsProps={{ children: "Titre de l'action" }}
-                inputProps={getInputProps(fields.title, {
-                  type: "text",
-                  placeholder: "Entrez le titre de l'action",
-                })}
-                errors={fields.title.errors}
-              />
-              <Field
-                labelsProps={{ children: "Quantité" }}
-                inputProps={getInputProps(fields.quantity, {
-                  type: "number",
-                  min: "1",
-                  max: "1000000",
-                  placeholder: "Entrez la quantité",
-                })}
-                errors={fields.quantity.errors}
-              />
-
-              <TextareaField
-                labelProps={{ children: "Description" }}
-                textareaProps={{
-                  ...getTextareaProps(fields.description),
-                  placeholder: "Décrivez l'action",
-                }}
-                errors={fields.description.errors}
-              />
-
-              <div>
-                <p className="text-sm text-gray-500">
-                  Date sélectionnée:
-                  {selectedDate
-                    ? format(selectedDate, "PPP", { locale: fr })
-                    : "Aucune date sélectionnée"}
-                </p>
-                {fields.date.errors && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {fields.date.errors.join(", ")}
-                  </p>
-                )}
-              </div>
-
-              <Button type="submit" className="w-full">
-                Publier l&apos;action
-              </Button>
-            </Form>
-          </div>
-        </div>
-
-        <div className="">
-          <h2 className="text-2xl font-bold mb-6">Timeline des actions</h2>
-          {data.actions.map((action, index) => (
-            <ActionItem action={action} key={index} />
-          ))}
-          {/* <Timeline
-            actions={data.actions.map((action) => ({
-              ...action,
-              date: new Date(action.date),
-            }))}
-          /> */}
-        </div>
+    <div className="container mx-auto py-10">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Actions</h1>
+        <CreateActionDialog form={form} fields={fields}>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Nouvelle Action
+          </Button>
+        </CreateActionDialog>
       </div>
+
+      <Tabs defaultValue="red" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="red">Vins Rouges</TabsTrigger>
+          <TabsTrigger value="white">Vins Blancs</TabsTrigger>
+          <TabsTrigger value="rose">Vins Rosés</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="red">
+          <DataTable columns={columnsActions} data={redWineActions} />
+        </TabsContent>
+
+        <TabsContent value="white">
+          <DataTable columns={columnsActions} data={whiteWineActions} />
+        </TabsContent>
+
+        <TabsContent value="rose">
+          <DataTable columns={columnsActions} data={roseWineActions} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

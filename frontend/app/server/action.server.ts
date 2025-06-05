@@ -1,60 +1,28 @@
-import { type AppLoadContext } from "@remix-run/node";
+import { type RemixService } from "@thiez-64/backend";
+import { z } from "zod";
+import { CreateActionSchema } from "~/routes/_user+/actions";
 
-export const getActionsByUser = async ({
-  context,
-  userId,
-}: {
-  context: AppLoadContext;
-  userId: string;
-}) => {
-  return await context.remixService.prisma.action.findMany({
-    where: {
-      userId,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: {
-      date: "desc",
-    },
-  });
-};
-
-export const createAction = async ({
-  context,
-  data,
-}: {
-  context: AppLoadContext;
-  data: {
-    title: string;
-    description: string;
-    quantity: number;
-    date: Date;
-    userId: string;
-  };
-}) => {
-  return await context.remixService.prisma.action.create({
+export async function createAction(
+  remixService: RemixService,
+  userId: string,
+  data: z.infer<typeof CreateActionSchema>
+) {
+  const { duration, ...rest } = data;
+  return remixService.prisma.action.create({
     data: {
-      title: data.title,
-      description: data.description,
-      date: data.date,
-      quantity: data.quantity,
-      user: {
-        connect: { id: data.userId }, // relation explicite avec l'utilisateur
-      },
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
+      ...rest,
+      userId,
+      estimatedDuration: duration,
     },
   });
-};
+}
+
+export async function deleteAction(
+  remixService: RemixService,
+  userId: string,
+  actionId: string
+) {
+  return remixService.prisma.action.delete({
+    where: { id: actionId, userId },
+  });
+}

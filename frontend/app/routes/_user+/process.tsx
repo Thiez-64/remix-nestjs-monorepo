@@ -9,10 +9,10 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   return null;
 };
 
-export default function Documents() {
+export default function Process() {
   return (
     <div className="flex h-full items-center justify-center">
-      <h1 className="text-4xl font-bold">Documents page</h1>
+      <h1 className="text-4xl font-bold">Process page</h1>
     </div>
   );
 }

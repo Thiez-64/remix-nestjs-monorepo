@@ -10,13 +10,13 @@ export const Header = () => {
   return (
     <header className="bg-background/75 backdrop-blur border-b border-gray-200 dark:border-gray-800 -mb-px sticky top-0 z-50">
       <nav className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl flex items-center justify-between gap-3 h-16">
-        <div className="lg:flex-1 flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5">
           <Link to="/">
             <div className=" text-black">LOGO</div>
           </Link>
         </div>
         {user ? (
-          <ul className="items-center gap-x-8 hidden md:flex">
+          <ul className="items-center gap-x-8 hidden md:flex lg:flex-1 justify-end">
             {user.role === "SUPER_ADMIN" && (
               <>
                 <li className="relative">
@@ -40,13 +40,16 @@ export const Header = () => {
                   <Link to="/dashboard">Dashboard</Link>
                 </li>
                 <li className="relative">
-                  <Link to="/orders">Orders</Link>
+                  <Link to="/my-cellar">Mon Chai</Link>
                 </li>
                 <li className="relative">
-                  <Link to="/documents">Documents</Link>
+                  <Link to="/process">Processus</Link>
                 </li>
                 <li className="relative">
-                  <Link to="/actions">Actions</Link>
+                  <Link to="/actions">Methodes</Link>
+                </li>
+                <li className="relative">
+                  <Link to="/orders">Commandes</Link>
                 </li>
               </>
             )}

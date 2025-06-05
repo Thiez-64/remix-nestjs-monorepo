@@ -19,12 +19,7 @@ export const Field = ({
       <label className="text-gray-500 text-sm" {...labelsProps}>
         {labelsProps.children}
       </label>
-      <Input
-        {...inputProps}
-        // {...getInputProps(fields.email, {
-        //     type: 'email',
-        // })}
-      />
+      <Input {...inputProps} />
       {errors ? (
         <ul role="alert" className="text-red-600 flex flex-col gap-y-0.5">
           {errors.map((error) => (

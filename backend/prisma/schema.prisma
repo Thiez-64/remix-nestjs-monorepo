@@ -19,6 +19,25 @@ enum UserRole {
   SUPER_ADMIN
 }
 
+enum WineType {
+  ROUGE
+  BLANC
+  ROSE
+}
+
+enum TankMaterial {
+  INOX
+  BETON
+  BOIS
+  PLASTIQUE
+}
+
+enum TankStatus {
+  EMPTY
+  IN_USE
+  MAINTENANCE
+}
+
 model User {
   id                String              @id @default(uuid())
   email             String              @unique
@@ -30,6 +49,7 @@ model User {
   sessions          Session[]
   passwordResetTokens PasswordResetToken[]
   actions           Action[]
+  tanks            Tank[]
 }
 
 model Session {
@@ -51,16 +71,79 @@ model PasswordResetToken {
   used      Boolean  @default(false)
 }
 
-model Action {
-  id          String   @id @default(uuid())
-  title       String
-  description String
-  date        DateTime
-  quantity    Int      @default(1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id])
+model Tank {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  material    TankMaterial
+  capacity    Float
+  currentWine Float        @default(0)
+  wineType    WineType?
+  status      TankStatus   @default(EMPTY)
   userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@index([userId])
 }
+
+model Action {
+  id               String       @id @default(cuid())
+  type             String
+  description      String
+  estimatedDuration Int
+  needsPurchase    Boolean      @default(false)
+  wineType         String
+  userId           String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id])
+  consumables  ActionConsumable[]
+
+  @@index([userId])
+}
+
+model Consumable {
+  id          String       @id @default(cuid())
+  name        String
+  unit        String
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  actions     ActionConsumable[]
+
+  @@unique([name, unit])
+}
+
+model ActionConsumable {
+  id            String     @id @default(cuid())
+  actionId      String
+  consumableId  String
+  quantity      Float
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  action      Action     @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  consumable  Consumable @relation(fields: [consumableId], references: [id], onDelete: Cascade)
+
+  @@unique([actionId, consumableId])
+  @@index([actionId])
+  @@index([consumableId])
+}
+
+enum ActionTankType {
+  RECEPTIONNER_MOUT
+  FERMENTATION_ALCOOLIQUE
+  FERMENTATION_MALO_LACTIQUE
+  CLARIFIER
+  STABILISER
+  AJUSTER
+  FILTRER
+  METTRE_EN_BOUTEILLE
+  METTRE_EN_BIB
+} 
+
+
