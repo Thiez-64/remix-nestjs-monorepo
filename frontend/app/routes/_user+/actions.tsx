@@ -1,9 +1,8 @@
 import { useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import {
-  json,
   type ActionFunctionArgs,
-  type LoaderFunctionArgs,
+  type LoaderFunctionArgs
 } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { Plus } from "lucide-react";
@@ -36,7 +35,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     },
   });
 
-  return json({
+  return {
     actions: actions.map((action) => ({
       id: action.id,
       type: action.type,
@@ -50,7 +49,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
         unit: ac.consumable.unit,
       })),
     })),
-  });
+  };
 };
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
@@ -76,12 +75,12 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   });
 
   if (submission.status !== "success") {
-    return json(submission.reply());
+    return { result: submission.reply() };
   }
 
   await createAction(context.remixService, user.id, submission.value);
 
-  return json(submission.reply());
+  return { result: submission.reply() };
 };
 
 export default function Actions() {
@@ -94,7 +93,7 @@ export default function Actions() {
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: CreateActionSchema });
     },
-    lastResult: actionData,
+    lastResult: actionData?.result,
   });
 
   const redWineActions = actions.filter(

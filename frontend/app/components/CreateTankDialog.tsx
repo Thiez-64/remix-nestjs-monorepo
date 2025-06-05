@@ -1,11 +1,12 @@
 import {
+  FieldMetadata,
   getFormProps,
   getInputProps,
-  type FieldMetadata,
-  type FormMetadata,
+  type FormMetadata
 } from "@conform-to/react";
 import { Form, useNavigation } from "@remix-run/react";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { Field } from "~/components/forms";
 import { Button } from "~/components/ui/button";
 import {
@@ -22,22 +23,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { TankSchema } from "~/routes/_user+/my-cellar";
 import { Label } from "./ui/label";
 
-type CreateTankFormData = {
-  name: string;
-  description: string;
-  capacity: number;
-  material: "INOX" | "BETON" | "BOIS" | "PLASTIQUE";
+type FormFieldsFromSchema<TSchema extends z.ZodTypeAny> = {
+  [K in keyof z.infer<TSchema>]: FieldMetadata<
+    z.infer<TSchema>[K],
+    z.infer<TSchema>,
+    string[]
+  >;
 };
 
 type CreateTankDialogProps = {
   children: React.ReactNode;
-  form: FormMetadata<CreateTankFormData, string[]>;
-  fields: Record<
-    string,
-    FieldMetadata<CreateTankFormData, { value: string | number }, string[]>
-  >;
+  form: FormMetadata<z.infer<typeof TankSchema>, string[]>;
+  fields: FormFieldsFromSchema<typeof TankSchema>;
 };
 
 export function CreateTankDialog({
@@ -74,11 +74,11 @@ export function CreateTankDialog({
             errors={fields.name.errors}
           />
 
-          <Field
+          {fields.description && < Field
             inputProps={getInputProps(fields.description, { type: "text" })}
             labelsProps={{ children: "Description" }}
             errors={fields.description.errors}
-          />
+          />}
 
           <Field
             inputProps={getInputProps(fields.capacity, { type: "number" })}

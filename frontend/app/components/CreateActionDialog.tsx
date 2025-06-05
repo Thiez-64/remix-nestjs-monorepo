@@ -6,8 +6,8 @@ import {
 } from "@conform-to/react";
 import { Form, useNavigation } from "@remix-run/react";
 import { useEffect, useState } from "react";
-import { Field } from "./forms";
 import { SelectScrollable } from "./SelectScrollable";
+import { Field } from "./forms";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -35,10 +35,28 @@ type CreateActionFormData = {
 type CreateActionDialogProps = {
   children: React.ReactNode;
   form: FormMetadata<CreateActionFormData, string[]>;
-  fields: Record<
-    string,
-    FieldMetadata<CreateActionFormData, { value: string | number }, string[]>
-  >;
+  fields: {
+    wineType: FieldMetadata<
+      CreateActionFormData["wineType"],
+      CreateActionFormData,
+      string[]
+    >;
+    type: FieldMetadata<
+      CreateActionFormData["type"],
+      CreateActionFormData,
+      string[]
+    >;
+    description: FieldMetadata<
+      CreateActionFormData["description"],
+      CreateActionFormData,
+      string[]
+    >;
+    duration: FieldMetadata<
+      CreateActionFormData["duration"],
+      CreateActionFormData,
+      string[]
+    >;
+  };
 };
 
 export function CreateActionDialog({
@@ -80,15 +98,15 @@ export function CreateActionDialog({
                 <SelectItem value="ROSE">Rosé</SelectItem>
               </SelectContent>
             </Select>
-            {fields.material.errors && (
-              <p className="text-sm text-red-500">{fields.material.errors}</p>
+            {fields.wineType.errors && (
+              <p className="text-sm text-red-500">{fields.wineType.errors}</p>
             )}
           </div>
           <div className="space-y-2">
             <Label className="text-sm font-medium">Type d&apos;actions</Label>
             <SelectScrollable name={fields.type.name} />
-            {fields.material.errors && (
-              <p className="text-sm text-red-500">{fields.material.errors}</p>
+            {fields.type.errors && (
+              <p className="text-sm text-red-500">{fields.type.errors}</p>
             )}
           </div>
           <Field

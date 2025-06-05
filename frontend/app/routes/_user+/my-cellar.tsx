@@ -7,27 +7,13 @@ import {
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { AlertTriangle, Database, Droplet, Plus, Wine } from "lucide-react";
 import { z } from "zod";
+import { columnsMyCellar } from "~/components/ColumnsMyCellar";
+import { CreateTankDialog } from "~/components/CreateTankDialog";
 import { Button } from "~/components/ui/button";
+import { DataTable } from "~/components/ui/data-table";
 import { requireUser } from "~/server/auth.server";
 import { createTank, getTanks } from "~/server/mycellar.server";
 
-import { columnsMyCellar } from "~/components/ColumnsMyCellar";
-import { CreateTankDialog } from "~/components/CreateTankDialog";
-import { DataTable } from "~/components/ui/data-table";
-
-export type Tank = {
-  id: string;
-  name: string;
-  description?: string;
-  material: "INOX" | "BETON" | "BOIS" | "PLASTIQUE";
-  capacity: number;
-  currentWine: number;
-  wineType?: "ROUGE" | "BLANC" | "ROSE";
-  status: "EMPTY" | "IN_USE" | "MAINTENANCE";
-  userId: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
 
 export const TankSchema = z.object({
   name: z.string().min(1, "Le nom est obligatoire"),
