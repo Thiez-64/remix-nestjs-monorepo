@@ -1,6 +1,6 @@
 export default function Blog() {
   return (
-    <div className="flex h-full items-center justify-center">
+    <div className="container mx-auto py-10">
       <h1 className="text-4xl font-bold">Menu page</h1>
     </div>
   );

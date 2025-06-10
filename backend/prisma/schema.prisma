@@ -19,11 +19,7 @@ enum UserRole {
   SUPER_ADMIN
 }
 
-enum WineType {
-  ROUGE
-  BLANC
-  ROSE
-}
+
 
 enum TankMaterial {
   INOX
@@ -38,6 +34,13 @@ enum TankStatus {
   MAINTENANCE
 }
 
+enum BatchStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  PAUSED
+}
+
 model User {
   id                String              @id @default(uuid())
   email             String              @unique
@@ -50,6 +53,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   actions           Action[]
   tanks            Tank[]
+  processes        Process[]
+  batches          Batch[]
 }
 
 model Session {
@@ -73,77 +78,102 @@ model PasswordResetToken {
 
 model Tank {
   id          String       @id @default(cuid())
-  name        String
+  name        String       // Nom de la cuvée: "Château de Rouge", "Cuvée Prestige"
   description String?
   material    TankMaterial
   capacity    Float
   currentWine Float        @default(0)
-  wineType    WineType?
   status      TankStatus   @default(EMPTY)
+  batchId     String?      // Batch sélectionné pour ce tank
   userId      String
-  user        User         @relation(fields: [userId], references: [id])
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
+  user        User         @relation(fields: [userId], references: [id])
+  batch       Batch?       @relation(fields: [batchId], references: [id])
+  // batch accessible via process.batch
+
+  @@index([userId])
+  @@index([batchId])
+ 
+}
+
+model Process {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  startDate   DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  user        User            @relation(fields: [userId], references: [id])
+  batch       Batch?          // Batch qui utilise ce processus
+  actions     Action[]        // Actions de ce processus (one-to-many)
+ 
+
   @@index([userId])
 }
+
+
+
+model Batch {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  quantity    Float
+  status      BatchStatus @default(PLANNED)
+  processId   String?     @unique // Batch a un process
+  userId      String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id])
+  process     Process?    @relation(fields: [processId], references: [id])
+  tanks       Tank[]      // Tanks qui utilisent ce batch
+  
+
+  @@index([userId])
+  @@index([processId])
+}
+
 
 model Action {
   id               String       @id @default(cuid())
   type             String
   description      String
-  estimatedDuration Int
+  duration         Int
   needsPurchase    Boolean      @default(false)
-  wineType         String
+  scaleWithVolume  Boolean      @default(false) // Les consommables s'adaptent au volume de la cuvée
+  referenceVolume  Float?       // Volume de référence pour les quantités (en litres)
+  processId        String?      // Action peut appartenir à un Process
+  assignedDate     DateTime?    // Date de début prévue quand assignée
   userId           String
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
   user         User         @relation(fields: [userId], references: [id])
-  consumables  ActionConsumable[]
+  process      Process?     @relation(fields: [processId], references: [id])
+ 
+  consumables  Consumable[]
 
   @@index([userId])
+  @@index([processId])
+ 
 }
 
 model Consumable {
-  id          String       @id @default(cuid())
-  name        String
-  unit        String
-  description String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id               String       @id @default(cuid())
+  name             String
+  unit             String
+  quantity         Float        // Quantité actuelle (calculée pour les actions assignées)
+  originalQuantity Float?       // Quantité de référence originale (pour les actions avec scaleWithVolume)
+  description      String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
-  actions     ActionConsumable[]
+  actionId     String?
+  action       Action?      @relation(fields: [actionId], references: [id])
 
-  @@unique([name, unit])
-}
-
-model ActionConsumable {
-  id            String     @id @default(cuid())
-  actionId      String
-  consumableId  String
-  quantity      Float
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-
-  action      Action     @relation(fields: [actionId], references: [id], onDelete: Cascade)
-  consumable  Consumable @relation(fields: [consumableId], references: [id], onDelete: Cascade)
-
-  @@unique([actionId, consumableId])
+  @@unique([name, unit, actionId])
   @@index([actionId])
-  @@index([consumableId])
 }
-
-enum ActionTankType {
-  RECEPTIONNER_MOUT
-  FERMENTATION_ALCOOLIQUE
-  FERMENTATION_MALO_LACTIQUE
-  CLARIFIER
-  STABILISER
-  AJUSTER
-  FILTRER
-  METTRE_EN_BOUTEILLE
-  METTRE_EN_BIB
-} 
-
-

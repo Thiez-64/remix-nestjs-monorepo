@@ -13,6 +13,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
+import { Button } from "./button";
 import {
   Table,
   TableBody,
@@ -20,8 +21,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "~/components/ui/table";
-import { Button } from "./button";
+} from "./table";
 
 interface DataTableProps<
   TData,

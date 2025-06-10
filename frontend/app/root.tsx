@@ -12,6 +12,8 @@ import type { RemixService } from "@thiez-64/backend";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { AppSidebar } from "./components/ui/app-sidebar";
+import { SidebarProvider } from "./components/ui/sidebar";
 import { getOptionalUser } from "./server/auth.server";
 
 export const links: LinksFunction = () => [
@@ -76,8 +78,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           disableTransitionOnChange
         >
           <Header />
-          {children}
-          <Footer />
+          <SidebarProvider>
+            <AppSidebar />
+            <div className="flex-1">
+              {children}
+              <Footer />
+            </div>
+          </SidebarProvider>
           <ScrollRestoration />
           <Scripts />
         </ThemeProvider>

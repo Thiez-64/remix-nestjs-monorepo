@@ -37,7 +37,7 @@ export const Header = () => {
             {user.role === "USER" && (
               <>
                 <li className="relative">
-                  <Link to="/dashboard">Dashboard</Link>
+                  <Link to="/batch">Cuvées</Link>
                 </li>
                 <li className="relative">
                   <Link to="/my-cellar">Mon Chai</Link>
@@ -46,11 +46,9 @@ export const Header = () => {
                   <Link to="/process">Processus</Link>
                 </li>
                 <li className="relative">
-                  <Link to="/actions">Methodes</Link>
+                  <Link to="/production">Production</Link>
                 </li>
-                <li className="relative">
-                  <Link to="/orders">Commandes</Link>
-                </li>
+
               </>
             )}
           </ul>
