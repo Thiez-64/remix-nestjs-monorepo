@@ -5,7 +5,6 @@ import {
 import { Form, Link } from "@remix-run/react";
 import { PlayCircle } from "lucide-react";
 import { useState } from "react";
-import { z } from "zod";
 import CardAssigned from "../../components/CardAssigned";
 import { Button } from "../../components/ui/button";
 import {
@@ -17,13 +16,7 @@ import {
 } from "../../components/ui/dialog";
 import { requireUser } from "../../server/auth.server";
 import { BatchLoaderData } from "./batch";
-
-export const BatchProcessSchema = z.object({
-  name: z.string().min(1, "Le nom du processus est requis"),
-  description: z.string().optional(),
-});
-
-
+import { BatchSchema } from "./batch.schema";
 
 export const action = async ({ request, params, context }: ActionFunctionArgs) => {
   const user = await requireUser({ context });
@@ -70,7 +63,7 @@ export const action = async ({ request, params, context }: ActionFunctionArgs) =
 
   // Créer un nouveau processus
   const submission = parseWithZod(formData, {
-    schema: BatchProcessSchema,
+    schema: BatchSchema,
   });
 
   if (submission.status !== "success") {

@@ -41,6 +41,13 @@ enum BatchStatus {
   PAUSED
 }
 
+enum ActionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  WAITING_STOCK
+}
+
 model User {
   id                String              @id @default(uuid())
   email             String              @unique
@@ -55,6 +62,7 @@ model User {
   tanks            Tank[]
   processes        Process[]
   batches          Batch[]
+  stocks           Stock[]
 }
 
 model Session {
@@ -77,25 +85,24 @@ model PasswordResetToken {
 }
 
 model Tank {
-  id          String       @id @default(cuid())
-  name        String       // Nom de la cuvée: "Château de Rouge", "Cuvée Prestige"
-  description String?
-  material    TankMaterial
-  capacity    Float
-  currentWine Float        @default(0)
-  status      TankStatus   @default(EMPTY)
-  batchId     String?      // Batch sélectionné pour ce tank
-  userId      String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  name          String       // Nom de la cuve: "Cuve A1", "Tank Inox 2"
+  description   String?
+  material      TankMaterial
+  capacity      Float        // Capacité maximale de la cuve
+  currentWine   Float        @default(0)
+  allocatedVolume Float      @default(0) // Volume de la cuvée assigné à cette cuve
+  status        TankStatus   @default(EMPTY)
+  batchId       String?      // Batch (cuvée) assigné à ce tank
+  userId        String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   user        User         @relation(fields: [userId], references: [id])
   batch       Batch?       @relation(fields: [batchId], references: [id])
-  // batch accessible via process.batch
 
   @@index([userId])
   @@index([batchId])
- 
 }
 
 model Process {
@@ -138,27 +145,25 @@ model Batch {
 
 
 model Action {
-  id               String       @id @default(cuid())
-  type             String
-  description      String
-  duration         Int
-  needsPurchase    Boolean      @default(false)
-  scaleWithVolume  Boolean      @default(false) // Les consommables s'adaptent au volume de la cuvée
-  referenceVolume  Float?       // Volume de référence pour les quantités (en litres)
-  processId        String?      // Action peut appartenir à un Process
-  assignedDate     DateTime?    // Date de début prévue quand assignée
-  userId           String
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-
-  user         User         @relation(fields: [userId], references: [id])
-  process      Process?     @relation(fields: [processId], references: [id])
- 
-  consumables  Consumable[]
+  id              String        @id @default(cuid())
+  type            String
+  description     String?
+  duration        Float
+  needsPurchase   Boolean       @default(false)
+  scaleWithVolume Boolean       @default(false)
+  referenceVolume Float?
+  status          ActionStatus        @default(PENDING)
+  userId          String
+  processId       String?
+  process         Process?      @relation(fields: [processId], references: [id])
+  consumables     Consumable[]
+  user            User          @relation(fields: [userId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  assignedDate    DateTime?
 
   @@index([userId])
   @@index([processId])
- 
 }
 
 model Consumable {
@@ -176,4 +181,22 @@ model Consumable {
 
   @@unique([name, unit, actionId])
   @@index([actionId])
+}
+
+model Stock {
+  id          String   @id @default(cuid())
+  name        String   // Nom du consommable/produit
+  unit        String   // Unité de mesure (g, ml, L, etc.)
+  quantity    Float    // Quantité en stock
+  minimumQty  Float    @default(0) // Seuil d'alerte stock
+  description String?  
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isOutOfStock Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([name, unit, userId]) // Un seul stock par produit/unité/utilisateur
+  @@index([userId])
 }

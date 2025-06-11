@@ -8,8 +8,8 @@ import { Field } from "../../components/forms";
 import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { requireUser } from "../../server/auth.server";
-import { ProcessLoaderData } from "./process";
-import { ProcessSchema } from "./process.schema";
+import { StockLoaderData } from "./stock";
+import { StockSchema } from "./stock.schema";
 
 
 
@@ -19,10 +19,10 @@ export const action = async ({
   context,
 }: ActionFunctionArgs) => {
   const user = await requireUser({ context });
-  const processId = params.processId;
+  const stockId = params.stockId;
 
-  if (!processId) {
-    throw new Error("Process ID is required");
+  if (!stockId) {
+    throw new Error("Stock ID is required");
   }
 
   const formData = await request.formData();
@@ -30,38 +30,42 @@ export const action = async ({
 
   // Gestion de la suppression
   if (intent === "delete") {
-    const process = await context.remixService.prisma.process.findUnique({
-      where: { id: processId, userId: user.id },
+    const stock = await context.remixService.prisma.stock.findUnique({
+      where: { id: stockId, userId: user.id },
     });
 
-    if (!process) {
-      throw new Error("Process not found");
+    if (!stock) {
+      throw new Error("Stock not found");
     }
 
-    await context.remixService.prisma.process.delete({
-      where: { id: processId, userId: user.id },
+    await context.remixService.prisma.stock.delete({
+      where: { id: stockId, userId: user.id },
     });
 
-    return redirect(`/process`);
+    return redirect(`/stock`);
   }
 
   // Gestion de la modification
   const submission = await parseWithZod(formData, {
     async: true,
-    schema: ProcessSchema.superRefine(async (data, ctx) => {
-      const existingProcess = await context.remixService.prisma.process.findFirst({
+    schema: StockSchema.superRefine(async (data, ctx) => {
+      const existingStock = await context.remixService.prisma.stock.findFirst({
         where: {
           name: data.name,
+          unit: data.unit,
+          quantity: data.quantity,
+          minimumQty: data.minimumQty,
+          description: data.description,
           userId: user.id,
-          id: { not: processId },
+          id: { not: stockId },
         },
       });
 
-      if (existingProcess) {
+      if (existingStock) {
         ctx.addIssue({
           code: "custom",
           path: ["name"],
-          message: "Un processus avec ce nom existe déjà",
+          message: "Un stock avec ce nom et cette unité existe déjà",
         });
       }
 
@@ -72,31 +76,35 @@ export const action = async ({
     return submission.reply();
   }
 
-  const process = await context.remixService.prisma.process.findUnique({
-    where: { id: processId, userId: user.id },
+
+
+  const stock = await context.remixService.prisma.stock.findUnique({
+    where: { id: stockId, userId: user.id },
   });
 
-  if (!process) {
-    throw new Error("Process not found");
+  if (!stock) {
+    throw new Error("Stock not found");
   }
 
-  await context.remixService.prisma.process.update({
-    where: { id: processId },
+  await context.remixService.prisma.stock.update({
+    where: { id: stockId },
     data: {
       name: submission.value.name,
+      unit: submission.value.unit,
+      quantity: submission.value.quantity,
+      minimumQty: submission.value.minimumQty,
       description: submission.value.description,
-      startDate: submission.value.startDate ? new Date(submission.value.startDate) : null,
     },
   });
 
-  return redirect(`/process`);
+  return redirect(`/stock`);
 };
 
 
-export function EditProcessDialog({
-  process
+export function EditStockDialog({
+  stock
 }: {
-  process: ProcessLoaderData['processes'][number]
+  stock: StockLoaderData['stocks'][number]
 }) {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -105,21 +113,24 @@ export function EditProcessDialog({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [form, fields] = useForm({
-    id: "edit-process",
-    constraint: getZodConstraint(ProcessSchema),
+    id: "edit-stock",
+    constraint: getZodConstraint(StockSchema),
     onValidate({ formData }) {
-      return parseWithZod(formData, { schema: ProcessSchema });
+      return parseWithZod(formData, { schema: StockSchema });
     },
     lastResult: actionData,
     defaultValue: {
-      name: process.name,
-      description: process.description || "",
-      startDate: process.startDate ? new Date(process.startDate).toLocaleTimeString("fr-FR") : "",
+      name: stock.name,
+      unit: stock.unit,
+      quantity: stock.quantity,
+      minimumQty: stock.minimumQty,
+      description: stock.description || "",
     },
     onSubmit() {
       setOpen(false);
     },
   });
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -130,19 +141,35 @@ export function EditProcessDialog({
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Modifier {process.name}</DialogTitle>
+          <DialogTitle>Modifier {stock.name}</DialogTitle>
         </DialogHeader>
 
         <Form
           {...getFormProps(form)}
           method="POST"
-          action={`/process/${process.id}/edit`}
+          action={`/stock/${stock.id}/edit`}
           className="space-y-4"
         >
           <Field
             inputProps={getInputProps(fields.name, { type: "text" })}
-            labelsProps={{ children: "Nom du processus" }}
+            labelsProps={{ children: "Nom du produit" }}
             errors={fields.name.errors}
+          />
+
+          <Field
+            inputProps={getInputProps(fields.unit, { type: "text" })}
+            labelsProps={{ children: "Unité" }}
+            errors={fields.unit.errors}
+          />
+          <Field
+            inputProps={getInputProps(fields.quantity, { type: "number" })}
+            labelsProps={{ children: "Quantité" }}
+            errors={fields.quantity.errors}
+          />
+          <Field
+            inputProps={getInputProps(fields.minimumQty, { type: "number" })}
+            labelsProps={{ children: "Quantité minimum" }}
+            errors={fields.minimumQty.errors}
           />
 
           <Field
@@ -151,11 +178,6 @@ export function EditProcessDialog({
             errors={fields.description.errors}
           />
 
-          <Field
-            inputProps={getInputProps(fields.startDate, { type: "date" })}
-            labelsProps={{ children: "Date de début" }}
-            errors={fields.startDate.errors}
-          />
 
           <div className="flex justify-between">
             <Button
@@ -190,10 +212,10 @@ export function EditProcessDialog({
                 </svg>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Supprimer le processus &quot;{process.name}&quot;
+                Supprimer le stock &quot;{stock.name}&quot;
               </h3>
               <p className="text-sm text-gray-500 mb-6">
-                Cette action est irréversible. Ce processus sera définitivement supprimé.
+                Cette action est irréversible. Elle sera définitivement supprimée.
               </p>
               <div className="flex justify-center space-x-3">
                 <Button
@@ -204,7 +226,7 @@ export function EditProcessDialog({
                 </Button>
                 <Form method="POST">
                   <input type="hidden" name="intent" value="delete" />
-                  <input type="hidden" name="processId" value={process.id} />
+                  <input type="hidden" name="stockId" value={stock.id} />
                   <Button type="submit" variant="destructive" disabled={isSubmitting}>
                     {isSubmitting ? "Suppression..." : "Supprimer définitivement"}
                   </Button>

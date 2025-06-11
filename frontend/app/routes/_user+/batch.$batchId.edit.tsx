@@ -4,18 +4,14 @@ import { ActionFunctionArgs, redirect } from "@remix-run/node";
 import { Form, useActionData, useNavigation } from "@remix-run/react";
 import { Settings } from "lucide-react";
 import { useState } from "react";
-import { z } from "zod";
 import { Field } from "../../components/forms";
 import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { requireUser } from "../../server/auth.server";
 import { BatchLoaderData } from "./batch";
+import { BatchSchema } from "./batch.schema";
 
-export const EditBatchSchema = z.object({
-  name: z.string().min(1, "Le nom de la cuvée est requis"),
-  description: z.string().optional(),
-  quantity: z.number().min(1, "La quantité doit être supérieure à 0"),
-});
+
 
 
 export const action = async ({
@@ -32,7 +28,7 @@ export const action = async ({
 
   const formData = await request.formData();
   const submission = await parseWithZod(formData, {
-    schema: EditBatchSchema,
+    schema: BatchSchema,
   });
 
   if (submission.status !== "success") {
@@ -61,9 +57,9 @@ export function EditBatchDialog({ batch }: { batch: BatchLoaderData['batches'][n
 
   const [form, fields] = useForm({
     id: "edit-batch",
-    constraint: getZodConstraint(EditBatchSchema),
+    constraint: getZodConstraint(BatchSchema),
     onValidate({ formData }) {
-      return parseWithZod(formData, { schema: EditBatchSchema });
+      return parseWithZod(formData, { schema: BatchSchema });
     },
     lastResult: actionData,
     defaultValue: {

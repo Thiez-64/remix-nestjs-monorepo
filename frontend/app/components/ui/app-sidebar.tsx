@@ -1,4 +1,4 @@
-import { Database, PlayCircle, SquareArrowRight, Wine } from "lucide-react";
+import { Database, PackageCheck, PlayCircle, ShoppingBag, SquareArrowRight, Wine } from "lucide-react";
 import { useOptionalUser } from "../../root";
 import {
   Sidebar,
@@ -60,20 +60,51 @@ export function AppSidebar() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
-            <SidebarGroup></SidebarGroup>
-            <SidebarGroupLabel>Stockage</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <a href="/blog">
-                      <Database />
-                      <span>Stockage</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
+              <SidebarGroup>
+                <SidebarGroupLabel>Stock</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild>
+                        <a href="/stock">
+                          <Database />
+                          <span>Stockage</span>
+                        </a>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+              <SidebarGroup>
+                <SidebarGroupLabel>Achats</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild>
+                        <a href="/purchases">
+                          <ShoppingBag />
+                          <span>Achats</span>
+                        </a>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+              <SidebarGroup>
+                <SidebarGroupLabel>Commandes</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild>
+                        <a href="/orders">
+                          <PackageCheck />
+                          <span>Commandes</span>
+                        </a>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
           </SidebarContent>
         </Sidebar>
       }

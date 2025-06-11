@@ -7,8 +7,8 @@ import {
 import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { Database, Grape, Plus, Settings, Wine } from "lucide-react";
 import { useState } from "react";
-import { z } from "zod";
 import { Field } from "../../components/forms";
+import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import {
   Card,
@@ -35,36 +35,50 @@ import {
 import { requireUser } from "../../server/auth.server";
 import { CreateMyCellarBatchDialog } from "./my-cellar.$tankId.batch";
 import { EditTankDialog } from "./my-cellar.$tankId.edit";
+import { TankSchema } from "./my-cellar.schema";
 
-export const TankSchema = z.object({
-  name: z.string().min(1, "Le nom de la cuve est requis"),
-  description: z.string().optional(),
-  material: z.enum(["INOX", "BETON", "BOIS", "PLASTIQUE"]),
-  capacity: z.coerce.number().min(1, "La capacité doit être supérieure à 0"),
-});
+
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await requireUser({ context });
 
-  const [tanks, batches] = await Promise.all([context.remixService.prisma.tank.findMany({
-    where: { userId: user.id },
-    include: {
-      batch: {
-        include: {
-          process: true
+  const [tanks, batches] = await Promise.all([
+    context.remixService.prisma.tank.findMany({
+      where: { userId: user.id },
+      include: {
+        batch: {
+          include: {
+            process: true
+          }
         }
-      }
-    },
-    orderBy: { name: 'asc' },
-  }),
-  context.remixService.prisma.batch.findMany({
-    where: { userId: user.id },
-    orderBy: { name: 'asc' },
-  })
+      },
+      orderBy: { name: 'asc' },
+    }),
+    context.remixService.prisma.batch.findMany({
+      where: { userId: user.id },
+      orderBy: { name: 'asc' },
+    })
   ]);
 
+  // Calculer le volume total alloué pour chaque batch
+  const batchAllocations = new Map<string, number>();
 
-  return { tanks, batches };
+  tanks.forEach(tank => {
+    if (tank.batchId && tank.allocatedVolume > 0) {
+      const currentAllocation = batchAllocations.get(tank.batchId) || 0;
+      batchAllocations.set(tank.batchId, currentAllocation + tank.allocatedVolume);
+    }
+  });
+
+  // Enrichir les batches avec leurs informations d'allocation
+  const batchesWithAllocation = batches.map(batch => ({
+    ...batch,
+    totalAllocated: batchAllocations.get(batch.id) || 0,
+    remainingVolume: batch.quantity - (batchAllocations.get(batch.id) || 0),
+    isFullyAllocated: (batchAllocations.get(batch.id) || 0) >= batch.quantity,
+  }));
+
+  return { tanks, batches: batchesWithAllocation };
 };
 
 export type MyCellarLoaderData = Awaited<ReturnType<typeof loader>>;
@@ -98,7 +112,6 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     data: {
       ...submission.value,
       userId: user.id,
-      currentWine: 0,
       status: "EMPTY",
     },
   });
@@ -112,6 +125,12 @@ const materialLabels = {
   BOIS: "Bois",
   PLASTIQUE: "Plastique",
 };
+const materialColors = {
+  INOX: "bg-gray-200 text-gray-800",
+  BETON: "bg-neutral-400 text-neutral-800",
+  BOIS: "bg-yellow-200 text-yellow-800",
+  PLASTIQUE: "bg-blue-200 text-blue-800",
+};
 
 const statusLabels = {
   EMPTY: "Vide",
@@ -120,9 +139,9 @@ const statusLabels = {
 };
 
 const statusColors = {
-  EMPTY: "bg-gray-100 text-gray-800",
-  IN_USE: "bg-green-100 text-green-800",
-  MAINTENANCE: "bg-orange-100 text-orange-800",
+  EMPTY: "bg-gray-200 text-gray-800",
+  IN_USE: "bg-green-200 text-green-800",
+  MAINTENANCE: "bg-orange-200 text-orange-800",
 };
 
 export default function MyCellar() {
@@ -138,14 +157,21 @@ export default function MyCellar() {
       return parseWithZod(formData, { schema: TankSchema });
     },
     lastResult: actionData?.result,
+    defaultValue: {
+      name: "",
+      description: "",
+      capacity: 0,
+      material: "INOX",
+      status: "EMPTY",
+    },
   });
 
   const totalCapacity = tanks.reduce((acc, tank) => acc + tank.capacity, 0);
-  const totalWine = tanks.reduce((acc, tank) => acc + tank.currentWine, 0);
-  const fillRate = (totalWine / totalCapacity) * 100;
-  const availableTanks = tanks.filter((tank) => tank.currentWine === 0).length;
+  const totalWine = tanks.reduce((acc, tank) => acc + tank.allocatedVolume, 0);
+  const fillRate = totalCapacity > 0 ? (totalWine / totalCapacity) * 100 : 0;
+  const availableTanks = tanks.filter((tank) => tank.allocatedVolume === 0).length;
   const fullTanks = tanks.filter(
-    (tank) => tank.currentWine === tank.capacity
+    (tank) => tank.allocatedVolume === tank.capacity
   ).length;
 
   return (
@@ -190,22 +216,41 @@ export default function MyCellar() {
               />
 
               <div className="space-y-2">
-                <Label>Matériau de la cuve</Label>
-                <Select name={fields.material.name}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un matériau" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(materialLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {fields.material.errors && (
-                  <p className="text-sm text-red-500">{fields.material.errors}</p>
-                )}
+                <div className="flex justify-between gap-4">
+                  <div className="w-1/2 flex flex-col gap-2">
+                    <Label className="text-sm font-medium">Matériau</Label>
+                    <Select name={fields.material.name} defaultValue={fields.material.value}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Sélectionner un matériau" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="INOX">Inox</SelectItem>
+                        <SelectItem value="BETON">Béton</SelectItem>
+                        <SelectItem value="BOIS">Bois</SelectItem>
+                        <SelectItem value="PLASTIQUE">Plastique</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {fields.material.errors && (
+                      <p className="text-sm text-destructive">{fields.material.errors}</p>
+                    )}
+                  </div>
+                  <div className="w-1/2 flex flex-col gap-2">
+                    <Label className="text-sm font-medium">Statut</Label>
+                    <Select name={fields.status.name} defaultValue={fields.status.value}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Sélectionner un statut" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="EMPTY">Vide</SelectItem>
+                        <SelectItem value="IN_USE">En cours d&apos;utilisation</SelectItem>
+                        <SelectItem value="MAINTENANCE">En maintenance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {fields.status.errors && (
+                      <p className="text-sm text-destructive">{fields.status.errors}</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2">
@@ -309,9 +354,12 @@ export default function MyCellar() {
                   <div>
                     <div className="flex items-center gap-2">
                       <CardTitle>{tank.name}</CardTitle>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[tank.status]}`}>
+                      <Badge variant="secondary" className={statusColors[tank.status]}>
                         {statusLabels[tank.status]}
-                      </span>
+                      </Badge>
+                      <Badge variant="secondary" className={materialColors[tank.material]}>
+                        {materialLabels[tank.material]}
+                      </Badge>
                     </div>
                     {tank.description && (
                       <CardDescription>{tank.description}</CardDescription>
@@ -326,26 +374,22 @@ export default function MyCellar() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-500">Capacité :</span>
-                    <div className="font-medium">{tank.capacity}L</div>
+                <div className="flex flex-row items-center justify-between text-sm text-gray-600">
+                  <div className="flex flex-row gap-2 items-center">
+                    <p className=" font-bold">Capacité :</p>
+                    <p>{tank.capacity}L</p>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Contenu actuel :</span>
-                    <div className="font-medium">{tank.batch?.quantity ?? 0}L</div>
+                  <div className="flex flex-row gap-2 items-center">
+                    <p className=" font-bold">Contenu actuel :</p>
+                    <p>{tank.allocatedVolume ?? 0}L</p>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Processus :</span>
-                    <div className="font-medium">
-                      {tank.batch?.process ? tank.batch.process.name : "Aucun"}
-                    </div>
+                  <div className="flex flex-row gap-2 items-center">
+                    <p className=" font-bold">Processus :</p>
+                    <p>{tank.batch?.process ? tank.batch.process.name : "Aucun"}</p>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Cuvée :</span>
-                    <div className="font-medium">
-                      {tank.batch ? tank.batch.name : "Aucune"}
-                    </div>
+                  <div className="flex flex-row gap-2 items-center">
+                    <p className=" font-bold">Cuvée :</p>
+                    <p>{tank.batch ? tank.batch.name : "Aucune"}</p>
                   </div>
                 </div>
               </CardContent>

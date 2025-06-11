@@ -1,5 +1,6 @@
 import { useInputControl } from "@conform-to/react";
 import { useId } from "react";
+import { CreatableCombobox } from "./creatable-combobox";
 import { Checkbox, type CheckboxProps } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -139,5 +140,35 @@ export function ErrorList({
         <li key={e}>{e}</li>
       ))}
     </ul>
+  );
+}
+
+export function CreatableComboboxField({
+  labelsProps,
+  value,
+  onChange,
+  options,
+  errors,
+}: {
+  labelsProps: React.LabelHTMLAttributes<HTMLLabelElement>;
+  value: string;
+  onChange: (values: string) => void;
+  options: Array<{ id: string; name: string }>;
+  errors?: string[] | undefined;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-gray-500 text-sm" {...labelsProps}>
+        {labelsProps.children}
+      </label>
+      <CreatableCombobox value={value} onChange={onChange} options={options} />
+      {errors ? (
+        <ul role="alert" className="text-red-600 flex flex-col gap-y-0.5">
+          {errors.map((error) => (
+            <li key={error}>{error}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }

@@ -23,7 +23,7 @@ const columns: ColumnDef<ConsumableData>[] = [
     header: "Quantité",
     cell: ({ row }) => {
       const quantity = row.getValue("quantity") as number;
-      const originalQuantity = row.original.originalQuantity;
+      // const originalQuantity = row.original.originalQuantity;
       const unit = row.original.unit;
 
       return (
@@ -31,13 +31,22 @@ const columns: ColumnDef<ConsumableData>[] = [
           <span className="font-medium">
             {quantity} {unit}
           </span>
-          {originalQuantity && originalQuantity !== quantity && (
+          {/* {originalQuantity && originalQuantity !== quantity && (
             <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
               base: {originalQuantity} {unit}
             </span>
-          )}
+          )} */}
         </div>
       );
+    },
+  },
+  {
+    accessorKey: "status",
+    header: "Statut",
+    cell: ({ row }) => {
+      console.log('row', row)
+      const status = row.getValue("status") as string;
+      return <div className="text-gray-600">{status}</div>;
     },
   },
   {

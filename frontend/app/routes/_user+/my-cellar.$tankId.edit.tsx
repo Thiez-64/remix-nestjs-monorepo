@@ -7,7 +7,6 @@ import {
 import { Form, useActionData, useNavigation } from "@remix-run/react";
 import { Settings } from "lucide-react";
 import { useState } from "react";
-import { z } from "zod";
 import { Field } from "../../components/forms";
 import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
@@ -21,14 +20,9 @@ import {
 } from "../../components/ui/select";
 import { requireUser } from "../../server/auth.server";
 import { MyCellarLoaderData } from "./my-cellar";
+import { TankSchema } from "./my-cellar.schema";
 
-export const EditTankSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  description: z.string().optional(),
-  capacity: z.coerce.number().min(1, "La capacité doit être supérieure à 0"),
-  material: z.enum(["INOX", "BETON", "BOIS", "PLASTIQUE"]),
-  status: z.enum(["EMPTY", "IN_USE", "MAINTENANCE"]),
-});
+
 
 
 
@@ -67,7 +61,7 @@ export const action = async ({
   // Gestion de la modification
   const submission = await parseWithZod(formData, {
     async: true,
-    schema: EditTankSchema.superRefine(async (data, ctx) => {
+    schema: TankSchema.superRefine(async (data, ctx) => {
       const existingTank = await context.remixService.prisma.tank.findFirst({
         where: {
           name: data.name,
@@ -122,9 +116,9 @@ export function EditTankDialog({ tank }: { tank: MyCellarLoaderData['tanks'][num
 
   const [form, fields] = useForm({
     id: "edit-tank",
-    constraint: getZodConstraint(EditTankSchema),
+    constraint: getZodConstraint(TankSchema),
     onValidate({ formData }) {
-      return parseWithZod(formData, { schema: EditTankSchema });
+      return parseWithZod(formData, { schema: TankSchema });
     },
     lastResult: actionData,
     defaultValue: {

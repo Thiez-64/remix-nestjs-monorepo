@@ -5,10 +5,10 @@ import {
   type LoaderFunctionArgs
 } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
-import { PlayCircle, Plus } from "lucide-react";
+import { Circle, PlayCircle, Plus } from "lucide-react";
 import { useState } from "react";
-import { z } from "zod";
 import { Field } from "../../components/forms";
+import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import {
   Card,
@@ -27,12 +27,9 @@ import {
 import { requireUser } from "../../server/auth.server";
 import { CreateActionDialog } from "./process.$processId.actions";
 import { EditProcessDialog } from "./process.$processId.edit";
+import { ProcessSchema } from "./process.schema";
 
-export const ProcessSchema = z.object({
-  name: z.string().min(1, "Le nom du processus est requis"),
-  description: z.string().optional(),
-  startDate: z.string().optional(),
-});
+
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await requireUser({ context });
@@ -242,7 +239,7 @@ export default function Process() {
                   {/* Timeline des actions */}
                   {process.actions && process.actions.length > 0 && (
                     <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-gray-900">Actions assignées</h4>
+                      <h4 className="text-sm font-bold text-gray-600">Actions assignées</h4>
                       <div className="relative">
                         <div className="flex items-start space-x-6 overflow-x-auto pb-2">
                           {process.actions
@@ -327,22 +324,23 @@ export default function Process() {
                                     {/* Indicateur de statut */}
                                     <div className="mt-2 flex items-center justify-center">
                                       {isReady ? (
-                                        <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
-                                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                                        <Badge variant="secondary" className="bg-green-200 text-green-800 flex items-center gap-1">
+                                          <Circle className="w-2 h-2" />
                                           Prêt
-                                        </div>
+                                        </Badge>
                                       ) : (
-                                        <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs">
-                                          <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
+                                          <Badge variant="secondary" className="bg-orange-200 text-orange-800 flex items-center gap-1">
+                                            <Circle className="w-2 h-2" />
                                           En attente
-                                        </div>
+                                          </Badge>
+
                                       )}
                                     </div>
 
                                     {/* Badge de statut temporel */}
                                     <div className="mt-1">
                                       {status === 'upcoming' && (
-                                        <span className="text-xs text-gray-500">À venir</span>
+                                        <span className="text-xs text-gray-600">À venir</span>
                                       )}
                                       {status === 'current' && (
                                         <span className="text-xs text-blue-600 font-medium">En cours</span>

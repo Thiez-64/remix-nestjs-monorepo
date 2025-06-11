@@ -5,29 +5,23 @@ import {
   type LoaderFunctionArgs
 } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
-import { Plus, SquareArrowRight } from "lucide-react";
+import { Plus, SquareArrowRight, X } from "lucide-react";
 import { useState } from "react";
-import { z } from "zod";
 import { ConsumablesDataTable } from "../../components/consumables-data-table";
-import { Field } from "../../components/forms";
+import { CreatableComboboxField, Field } from "../../components/forms";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { requireUser } from "../../server/auth.server";
 import { EditActionDialog } from "./production.$actionId.edit";
+import { ActionSchema } from "./production.schema";
 
-export const ActionSchema = z.object({
-  type: z.string().min(1, "Le type de l'action est requis"),
-  description: z.string().optional(),
-  duration: z.coerce.number().min(1, "La durée doit être supérieure à 0"),
-  needsPurchase: z.boolean().default(false),
-  referenceVolume: z.coerce.number().min(1, "Le volume de référence doit être supérieur à 0").optional(),
-});
+
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await requireUser({ context });
-  const [actions, processes] = await Promise.all([
+  const [actions, processes, batches, stocks] = await Promise.all([
     context.remixService.prisma.action.findMany({
       where: { userId: user.id },
       include: {
@@ -43,9 +37,17 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
       where: { userId: user.id },
       orderBy: { name: 'asc' },
     }),
+    context.remixService.prisma.batch.findMany({
+      where: { userId: user.id },
+      orderBy: { name: 'asc' },
+    }),
+    context.remixService.prisma.stock.findMany({
+      where: { userId: user.id },
+      orderBy: { name: 'asc' },
+    }),
   ]);
 
-  return { actions, processes, user };
+  return { actions, processes, batches, stocks, user };
 };
 
 export type ProductionLoaderData = Awaited<ReturnType<typeof loader>>;
@@ -57,125 +59,113 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
   if (intent === "delete") {
     const actionId = formData.get("actionId");
-
-    if (!actionId) {
-      throw new Error("Action ID is required");
-    }
+    if (!actionId) throw new Error("Action ID is required");
 
     await context.remixService.prisma.action.delete({
       where: { id: actionId as string },
     });
-
     return new Response(null, { status: 200 });
   }
 
-  // Extraire les consommables du FormData
-  const consumablesData: Array<{
-    name: string;
-    unit: string;
-    quantity: number;
-    description?: string;
-  }> = [];
-
-  // Récupérer tous les champs qui commencent par "consumables["
+  // 1. Parse dynamique des consommables
+  const consumablesData: Array<{ name: string; unit: string; quantity: number; description?: string }> = [];
   for (const [key, value] of formData.entries()) {
     const match = key.match(/^consumables\[(\d+)\]\.(.+)$/);
     if (match) {
       const index = parseInt(match[1]);
       const field = match[2];
-
-      // Initialiser l'objet s'il n'existe pas
-      if (!consumablesData[index]) {
-        consumablesData[index] = { name: "", unit: "", quantity: 0, description: "" };
-      }
-
-      if (field === "quantity") {
-        consumablesData[index].quantity = parseFloat(value.toString()) || 0;
-      } else if (field === "name") {
-        consumablesData[index].name = value.toString();
-      } else if (field === "unit") {
-        consumablesData[index].unit = value.toString();
-      } else if (field === "description") {
-        consumablesData[index].description = value.toString();
-      }
+      consumablesData[index] ??= { name: "", unit: "", quantity: 0 };
+      if (field === "quantity") consumablesData[index].quantity = parseFloat(value.toString()) || 0;
+      else consumablesData[index][field] = value.toString();
     }
   }
 
-  // Création d'une action - schema simplifié sans les consommables
-  const basicSchema = z.object({
-    type: z.string().min(1, "Le type de l'action est requis"),
-    description: z.string().optional(),
-    duration: z.coerce.number().min(1, "La durée doit être supérieure à 0"),
-    needsPurchase: z.boolean().default(false),
-    referenceVolume: z.coerce.number().min(1, "Le volume de référence doit être supérieur à 0").optional(),
-  });
-
+  // 2. Validation Zod
   const submission = await parseWithZod(formData, {
     async: true,
-    schema: basicSchema.superRefine(async (data, ctx) => {
-      const existingAction = await context.remixService.prisma.action.findFirst(
-        {
-          where: { type: data.type, userId: user.id },
-        }
-      );
-
-      if (existingAction) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["type"],
-          message: "Une action avec ce type existe déjà",
-        });
+    schema: ActionSchema.superRefine(async (data, ctx) => {
+      const existing = await context.remixService.prisma.action.findFirst({
+        where: { type: data.type, userId: user.id },
+      });
+      if (existing) {
+        ctx.addIssue({ code: "custom", path: ["type"], message: "Une action avec ce type existe déjà" });
       }
     }),
   });
+  if (submission.status !== "success") return { result: submission.reply() };
 
-  if (submission.status !== "success") {
-    return { result: submission.reply() };
-  }
-
-  // Filtrer les consommables valides avant la transaction
+  // 3. Nettoyage des consommables
   const validConsumables = consumablesData.filter(
-    (consumable) =>
-      consumable &&
-      consumable.name &&
-      consumable.name.trim() &&
-      consumable.unit &&
-      consumable.unit.trim() &&
-      consumable.quantity &&
-      consumable.quantity > 0
+    (c) => c.name?.trim() && c.unit?.trim() && c.quantity > 0
   );
 
-  // Transaction atomique : action + consommables ensemble
-  await context.remixService.prisma.action.create({
-    data: {
-      type: submission.value.type,
-      description: submission.value.description ?? "",
-      duration: submission.value.duration,
-      needsPurchase: submission.value.needsPurchase,
-      scaleWithVolume: false, // Par défaut false, sera activé automatiquement lors de l'assignation
-      referenceVolume: submission.value.referenceVolume,
-      userId: user.id,
-      consumables: {
-        create: validConsumables.map((consumable) => ({
-          name: consumable.name.trim(),
-          unit: consumable.unit.trim(),
-          quantity: consumable.quantity,
-          description: consumable.description?.trim() || null,
-        })),
+  // 4. Transaction atomique
+  await context.remixService.prisma.$transaction(async (tx) => {
+    // a. Check et update ou création stock
+    for (const consumable of validConsumables) {
+      const stock = await tx.stock.findFirst({
+        where: { name: consumable.name, unit: consumable.unit, userId: user.id },
+      });
+
+      if (stock) {
+        if (stock.quantity < consumable.quantity) {
+          throw new Error(`Stock insuffisant pour "${consumable.name}"`);
+        }
+        await tx.stock.update({
+          where: { id: stock.id },
+          data: {
+            quantity: stock.quantity - consumable.quantity,
+            isOutOfStock: stock.quantity - consumable.quantity <= 0,
+          },
+        });
+      } else {
+        // Crée le stock avec 0 de quantité
+        await tx.stock.create({
+          data: {
+            name: consumable.name.trim(),
+            unit: consumable.unit.trim(),
+            quantity: 0,
+            isOutOfStock: true,
+            userId: user.id,
+          },
+        });
+      }
+    }
+
+    // b. Création de l'action avec ses consommables
+    await tx.action.create({
+      data: {
+        type: submission.value.type,
+        description: submission.value.description ?? "",
+        duration: submission.value.duration,
+        needsPurchase: submission.value.needsPurchase,
+        scaleWithVolume: false,
+        referenceVolume: submission.value.referenceVolume,
+        userId: user.id,
+        consumables: {
+          create: validConsumables.map((c) => ({
+            name: c.name.trim(),
+            unit: c.unit.trim(),
+            quantity: c.quantity,
+            description: c.description?.trim() || null,
+          })),
+        },
       },
-    },
+    });
   });
 
   return { result: submission.reply() };
 };
 
 export default function Production() {
-  const { actions, processes } = useLoaderData<typeof loader>();
+  const { actions, processes, batches, stocks } = useLoaderData<ProductionLoaderData>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const [open, setOpen] = useState(false);
   const [consumables, setConsumables] = useState([{ name: "", unit: "", quantity: 0, description: "" }]);
+
+
 
   const [form, fields] = useForm({
     id: "create-action",
@@ -187,6 +177,13 @@ export default function Production() {
     onSubmit() {
       setOpen(false);
       setConsumables([{ name: "", unit: "", quantity: 0, description: "" }]);
+    },
+    defaultValue: {
+      type: "",
+      description: "",
+      duration: 0,
+      needsPurchase: false,
+      referenceVolume: 0,
     },
   });
 
@@ -221,7 +218,7 @@ export default function Production() {
               Nouvelle action
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-xl">
             <DialogHeader>
               <DialogTitle>Créer une nouvelle action</DialogTitle>
             </DialogHeader>
@@ -241,7 +238,7 @@ export default function Production() {
 
               <Field
                 inputProps={getInputProps(fields.duration, { type: "number", step: "0.1" })}
-                labelsProps={{ children: "Durée (h)" }}
+                labelsProps={{ children: "Durée (j)" }}
                 errors={fields.duration.errors}
               />
 
@@ -268,23 +265,28 @@ export default function Production() {
                   </Button>
                 </div>
 
-                <div className="space-y-3 max-h-40 overflow-y-auto">
+                <div className="space-y-3 max-h-60 overflow-y-auto">
                   {consumables.map((consumable, index) => (
-                    <div key={index} className="p-3 border rounded-lg bg-gray-50 space-y-2">
-                      <div className="flex items-end space-x-2">
-                        <div className="flex-1">
-                          <Field
-                            inputProps={{
-                              type: "text",
-                              placeholder: "Nom (ex: Levure, Sulfite)",
-                              value: consumable.name,
-                              onChange: (e) => updateConsumable(index, "name", e.target.value),
-                              className: "h-8 text-sm",
-                            }}
-                            labelsProps={{ children: "Nom" }}
-                          />
-                        </div>
-                        <div className="w-24">
+                    <div key={index} className="p-6 border rounded-lg bg-gray-50 space-y-2 relative">
+                      {consumables.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeConsumable(index)}
+                          className="absolute top-2 right-2"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <CreatableComboboxField
+                        labelsProps={{ children: "Nom" }}
+                        value={consumable.name}
+                        onChange={(value) => updateConsumable(index, "name", value)}
+                        options={stocks.map(s => ({ id: s.id, name: s.name }))}
+                      />
+                      <div className="flex w-full gap-2">
+                        <div className="w-1/2">
                           <Field
                             inputProps={{
                               type: "number",
@@ -298,7 +300,7 @@ export default function Production() {
                             labelsProps={{ children: "Quantité" }}
                           />
                         </div>
-                        <div className="w-20">
+                        <div className="w-1/2">
                           <Field
                             inputProps={{
                               type: "text",
@@ -310,17 +312,7 @@ export default function Production() {
                             labelsProps={{ children: "Unité" }}
                           />
                         </div>
-                        {consumables.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeConsumable(index)}
-                            className="text-red-600 hover:text-red-700 h-8"
-                          >
-                            ×
-                          </Button>
-                        )}
+
                       </div>
                       <Field
                         inputProps={{
@@ -406,7 +398,7 @@ export default function Production() {
                   </div>
                   <div className="flex space-x-2">
                     {/* eslint-disable @typescript-eslint/no-explicit-any */}
-                    <EditActionDialog production={action as any} />
+                    <EditActionDialog production={action as any} stocks={stocks as any} />
                     {/* eslint-enable @typescript-eslint/no-explicit-any */}
                   </div>
                 </div>
@@ -421,19 +413,48 @@ export default function Production() {
                     <TabsTrigger value="consumables">Consommables</TabsTrigger>
                   </TabsList>
                   <TabsContent value="duration" className="mt-4">
-                    <div className="font-medium">{action.duration}h</div>
+                    <div className="text-sm text-gray-600 flex flex-row gap-2 items-center">
+                      <p className="font-bold ">Durée de l&apos;action (J) :
+                      </p>
+                      <p>
+                        {action.duration}h
+                      </p>
+                    </div>
                   </TabsContent>
                   <TabsContent value="process" className="mt-4">
-                    <div className="font-medium">
-                      {processes.find((process) => process.id === action.processId)?.name || "Non assigné"}
+                    <div className="flex flex-col gap-2">
+                      <div className="text-sm text-gray-600 flex flex-row gap-2 items-center">
+                        <p className="font-bold ">Cuvée :
+                        </p>
+                        <p>
+                          {batches.find((batch) => batch.id === action?.process?.batch?.id)?.name || "Non assigné"}
+                        </p>
+                      </div>
+                      <div className="text-sm text-gray-600 flex flex-row gap-2 items-center">
+                        <p className="font-bold">Processus :
+                        </p>
+                        <p>
+                          {processes.find((process) => process.id === action.processId)?.name || "Non assigné"}
+                        </p>
+                      </div>
                     </div>
                   </TabsContent>
                   <TabsContent value="needsPurchase" className="mt-4">
-                    <div className="font-medium">{action.needsPurchase ? "Oui" : "Non"}</div>
+                    <div className="text-sm text-gray-600 flex flex-row gap-2 items-center">
+                      <p className="font-bold ">Nécessite une acquisition :
+                      </p>
+                      <p>
+                        {action.needsPurchase ? "Oui" : "Non"}
+                      </p>
+                    </div>
                   </TabsContent>
                   <TabsContent value="referenceVolume" className="mt-4">
-                    <div className="font-medium">
-                      {action.referenceVolume ? `${action.referenceVolume}L` : "Non défini"}
+                    <div className="text-sm text-gray-600 flex flex-row gap-2 items-center">
+                      <p className="font-bold ">Volume de référence (L) :
+                      </p>
+                      <p>
+                        {action.referenceVolume ? `${action.referenceVolume}L` : "Non défini"}
+                      </p>
                     </div>
                   </TabsContent>
                   <TabsContent value="consumables" className="mt-4">

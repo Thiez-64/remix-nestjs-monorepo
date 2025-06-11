@@ -2,21 +2,16 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { ActionFunctionArgs, redirect } from "@remix-run/node";
 import { Form, useActionData, useNavigation } from "@remix-run/react";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, X } from "lucide-react";
 import { useState } from "react";
-import { z } from "zod";
-import { Field } from "../../components/forms";
+import { CreatableComboboxField, Field, } from "../../components/forms";
 import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { requireUser } from "../../server/auth.server";
 import { ProductionLoaderData } from "./production";
+import { ActionSchema } from "./production.schema";
 
-export const EditActionSchema = z.object({
-  type: z.string().min(1, "Le type est requis"),
-  description: z.string().optional(),
-  duration: z.coerce.number().min(1, "La durée doit être supérieure à 0"),
-  needsPurchase: z.boolean().default(false),
-});
+
 
 export const action = async ({
   request,
@@ -48,33 +43,6 @@ export const action = async ({
     });
 
     return redirect(`/production`);
-  }
-
-  // Gestion de la modification
-  const submission = await parseWithZod(formData, {
-    async: true,
-    schema: EditActionSchema.superRefine(async (data, ctx) => {
-      const existingAction = await context.remixService.prisma.action.findFirst({
-        where: {
-          type: data.type,
-          userId: user.id,
-          id: { not: actionId },
-        },
-      });
-
-      if (existingAction) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["type"],
-          message: "Une action avec ce type existe déjà",
-        });
-      }
-
-    }),
-  });
-
-  if (submission.status !== "success") {
-    return submission.reply();
   }
 
   // Extraire les consommables du FormData
@@ -109,18 +77,129 @@ export const action = async ({
     }
   }
 
+  console.log("Consumables data:", consumablesData);
+
+  const submission = await parseWithZod(formData, {
+    async: true,
+    schema: ActionSchema.superRefine(async (data, ctx) => {
+      const existingAction = await context.remixService.prisma.action.findFirst({
+        where: {
+          type: data.type,
+          userId: user.id,
+          id: { not: actionId },
+        },
+      });
+
+      if (existingAction) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["type"],
+          message: "Une action avec ce type existe déjà",
+        });
+      }
+    }),
+  });
+
+  if (submission.status !== "success") {
+    console.log("Validation failed:", submission.reply());
+    return submission.reply();
+  }
+
   const production = await context.remixService.prisma.action.findUnique({
     where: { id: actionId, userId: user.id },
+    include: {
+      consumables: true,
+    },
   });
 
   if (!production) {
     throw new Error("Action not found");
   }
 
-  // Supprimer tous les anciens consommables
-  await context.remixService.prisma.consumable.deleteMany({
-    where: { actionId: actionId },
-  });
+  // Filtrer les consommables valides
+  const validConsumables = consumablesData.filter(
+    (consumable) =>
+      consumable &&
+      consumable.quantity &&
+      consumable.quantity > 0 &&
+      // On accepte les consommables sans nom pour permettre l'ajout de nouveaux
+      ((consumable.name && consumable.name.trim()) || !consumable.name)
+  );
+
+  console.log("Valid consumables:", validConsumables);
+
+  // Vérifier et mettre à jour les stocks
+  let hasInsufficientStock = false;
+  for (const consumable of validConsumables) {
+    console.log("Processing consumable:", consumable);
+
+    // Si le consommable n'a pas de nom, on le saute car c'est un nouveau consommable vide
+    if (!consumable.name || !consumable.name.trim()) {
+      console.log("Skipping empty consumable");
+      continue;
+    }
+
+    let stock = await context.remixService.prisma.stock.findFirst({
+      where: {
+        name: consumable.name,
+        userId: user.id
+      }
+    });
+
+    // Si le stock n'existe pas, on le crée avec une quantité de 0
+    if (!stock) {
+      console.log("Creating new stock for:", consumable.name);
+      stock = await context.remixService.prisma.stock.create({
+        data: {
+          name: consumable.name,
+          quantity: 0,
+          unit: consumable.unit,
+          userId: user.id,
+          isOutOfStock: true
+        }
+      });
+      hasInsufficientStock = true;
+      continue;
+    }
+
+    // Récupérer l'ancienne quantité consommée
+    const oldConsumable = production.consumables.find(c => c.name === consumable.name);
+    const oldQuantity = oldConsumable ? oldConsumable.quantity : 0;
+
+    // Calculer la différence de quantité
+    const quantityDiff = consumable.quantity - oldQuantity;
+
+    console.log("Stock check:", {
+      stockName: stock.name,
+      stockQuantity: stock.quantity,
+      requiredQuantity: quantityDiff,
+      hasInsufficientStock
+    });
+
+    // Vérifier si le stock est suffisant pour la différence
+    if (stock.quantity < quantityDiff) {
+      hasInsufficientStock = true;
+      // Mettre à jour le statut du stock
+      await context.remixService.prisma.stock.update({
+        where: { id: stock.id },
+        data: {
+          isOutOfStock: true
+        }
+      });
+      continue;
+    }
+
+    // Mettre à jour le stock en tenant compte de l'ancienne quantité
+    await context.remixService.prisma.stock.update({
+      where: { id: stock.id },
+      data: {
+        quantity: stock.quantity - quantityDiff,
+        isOutOfStock: false
+      }
+    });
+  }
+
+  console.log("Stock check completed. hasInsufficientStock:", hasInsufficientStock);
 
   // Mettre à jour l'action
   await context.remixService.prisma.action.update({
@@ -130,45 +209,75 @@ export const action = async ({
       description: submission.value.description,
       duration: submission.value.duration,
       needsPurchase: submission.value.needsPurchase,
+      status: hasInsufficientStock ? "WAITING_STOCK" : "PENDING"
     },
   });
 
-  // Créer les nouveaux consommables
-  const validConsumables = consumablesData.filter(
-    (consumable) =>
-      consumable &&
-      consumable.name &&
-      consumable.name.trim() &&
-      consumable.unit &&
-      consumable.unit.trim() &&
-      consumable.quantity &&
-      consumable.quantity > 0
-  );
+  // Mettre à jour les consommables
+  const existingConsumables = await context.remixService.prisma.consumable.findMany({
+    where: { actionId: actionId }
+  });
 
-  if (validConsumables.length > 0) {
-    await Promise.all(
-      validConsumables.map((consumable) =>
-        context.remixService.prisma.consumable.create({
-          data: {
-            name: consumable.name.trim(),
-            unit: consumable.unit.trim(),
-            quantity: consumable.quantity,
-            description: consumable.description?.trim() || null,
-            actionId: actionId,
-          },
-        })
-      )
+  console.log("Existing consumables:", existingConsumables);
+
+  // Mettre à jour ou créer les consommables
+  for (const consumable of validConsumables) {
+    // On ne crée pas de consommable sans nom
+    if (!consumable.name || !consumable.name.trim()) {
+      console.log("Skipping consumable creation - no name provided");
+      continue;
+    }
+
+    const existingConsumable = existingConsumables.find(
+      c => c.name === consumable.name && c.unit === consumable.unit
     );
+
+    if (existingConsumable) {
+      console.log("Updating existing consumable:", existingConsumable.id);
+      // Mettre à jour le consommable existant
+      await context.remixService.prisma.consumable.update({
+        where: { id: existingConsumable.id },
+        data: {
+          quantity: consumable.quantity,
+          description: consumable.description?.trim() || null,
+        }
+      });
+    } else {
+      console.log("Creating new consumable:", consumable.name);
+      // Créer un nouveau consommable
+      await context.remixService.prisma.consumable.create({
+        data: {
+          name: consumable.name.trim(),
+          unit: consumable.unit.trim(),
+          quantity: consumable.quantity,
+          description: consumable.description?.trim() || null,
+          actionId: actionId,
+        }
+      });
+    }
   }
+
+  // Supprimer les consommables qui ne sont plus utilisés
+  const validConsumableNames = validConsumables.map(c => c.name);
+  await context.remixService.prisma.consumable.deleteMany({
+    where: {
+      actionId: actionId,
+      name: {
+        notIn: validConsumableNames
+      }
+    }
+  });
 
   return redirect(`/production`);
 };
 
 
 export function EditActionDialog({
-  production
+  production,
+  stocks
 }: {
-  production: ProductionLoaderData['actions'][number]
+    production: ProductionLoaderData['actions'][number],
+    stocks: ProductionLoaderData['stocks']
 }) {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -186,9 +295,9 @@ export function EditActionDialog({
 
   const [form, fields] = useForm({
     id: "edit-action",
-    constraint: getZodConstraint(EditActionSchema),
+    constraint: getZodConstraint(ActionSchema),
     onValidate({ formData }) {
-      return parseWithZod(formData, { schema: EditActionSchema });
+      return parseWithZod(formData, { schema: ActionSchema });
     },
     lastResult: actionData,
     defaultValue: {
@@ -271,23 +380,28 @@ export function EditActionDialog({
               </Button>
             </div>
 
-            <div className="space-y-3 max-h-40 overflow-y-auto">
+            <div className="space-y-3 max-h-60 overflow-y-auto">
               {consumables.map((consumable, index) => (
-                <div key={index} className="p-3 border rounded-lg bg-gray-50 space-y-2">
-                  <div className="flex items-end space-x-2">
-                    <div className="flex-1">
-                      <Field
-                        inputProps={{
-                          type: "text",
-                          placeholder: "Nom (ex: Levure, Sulfite)",
-                          value: consumable.name,
-                          onChange: (e) => updateConsumable(index, "name", e.target.value),
-                          className: "h-8 text-sm",
-                        }}
-                        labelsProps={{ children: "Nom" }}
-                      />
-                    </div>
-                    <div className="w-24">
+                <div key={index} className="p-6 border rounded-lg bg-gray-50 space-y-2 relative">
+                  {consumables.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeConsumable(index)}
+                      className="absolute top-2 right-2"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                  <CreatableComboboxField
+                    labelsProps={{ children: "Nom" }}
+                    value={consumable.name}
+                    onChange={(value) => updateConsumable(index, "name", value)}
+                    options={stocks.map(s => ({ id: s.id, name: s.name }))}
+                  />
+                  <div className="flex w-full gap-2">
+                    <div className="w-1/2">
                       <Field
                         inputProps={{
                           type: "number",
@@ -301,7 +415,7 @@ export function EditActionDialog({
                         labelsProps={{ children: "Quantité" }}
                       />
                     </div>
-                    <div className="w-20">
+                    <div className="w-1/2">
                       <Field
                         inputProps={{
                           type: "text",
@@ -313,17 +427,7 @@ export function EditActionDialog({
                         labelsProps={{ children: "Unité" }}
                       />
                     </div>
-                    {consumables.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeConsumable(index)}
-                        className="text-red-600 hover:text-red-700 h-8"
-                      >
-                        ×
-                      </Button>
-                    )}
+
                   </div>
                   <Field
                     inputProps={{
