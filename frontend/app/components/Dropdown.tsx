@@ -1,4 +1,4 @@
-import { Bell, CreditCard, LogOut, Settings, User, Users } from "lucide-react";
+import { CreditCard, LogOut, Settings, User, Users } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -25,12 +25,6 @@ export const Dropdown = ({ profileName }: { profileName: string }) => {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <a href="/notifications" className="flex items-center gap-2 w-full">
-              <Bell className="w-4 h-4" />
-              Notifications
-            </a>
-          </DropdownMenuItem>
           <DropdownMenuItem>
             <a href="/profile" className="flex items-center gap-2 w-full">
               <User className="w-4 h-4" />

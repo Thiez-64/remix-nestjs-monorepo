@@ -4,14 +4,13 @@ import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, useActionData, useLoaderData } from "@remix-run/react";
 import { ShieldUser, User } from "lucide-react";
 import { z } from "zod";
-import { Field } from "~/components/forms";
-import { Button } from "~/components/ui/button";
+import { Field } from "../../components/forms";
+import { Button } from "../../components/ui/button";
 import {
   changePassword,
-  checkIfUserExists,
-  requireUser,
-} from "~/server/auth.server";
-import { editProfile } from "~/server/profile.server";
+  requireUser
+} from "../../server/auth.server";
+import { editProfile } from "../../server/profile.server";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await requireUser({ context });
@@ -42,10 +41,8 @@ const ChangePasswordSchema = z
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const user = await requireUser({ context });
-  if (!user) {
-    throw new Error("User not found");
-  }
   const formData = await request.formData();
+
   const intent = formData.get("intent");
 
   if (intent === "password") {
@@ -103,8 +100,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       const { email } = data;
 
       if (email !== user.email) {
-        const existingUser = await checkIfUserExists({
-          context,
+        const existingUser = await context.remixService.auth.checkIfUserExists({
           email,
           withPassword: false,
           password: "",
@@ -170,7 +166,7 @@ export default function Profile() {
     lastResult: actionData?.result,
   });
   return (
-    <div className="bg-white dark:bg-background max-w-sm mx-auto w-full mt-14 flex flex-col gap-4">
+    <div className="bg-white dark:bg-background container mx-auto w-full mt-14 flex flex-row gap-4">
       <div className="flex flex-col gap-4 border border-gray-200 rounded-lg p-4">
         <div className="flex flex-col gap-2 items-center">
           <User className="w-10 h-10" />

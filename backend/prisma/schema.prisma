@@ -48,6 +48,16 @@ enum ActionStatus {
   WAITING_STOCK
 }
 
+enum CommodityType {
+  FERMENTATION_ADDITIVES
+  STABILIZATION_CLARIFICATION
+  ORGANOLEPTIC_CORRECTION
+  ENERGY
+  ANALYSIS_LAB
+  FILTRATION
+  PACKAGING
+}
+
 model User {
   id                String              @id @default(uuid())
   email             String              @unique
@@ -168,34 +178,41 @@ model Action {
 
 model Consumable {
   id               String       @id @default(cuid())
-  name             String
-  unit             String
-  quantity         Float        // Quantité actuelle (calculée pour les actions assignées)
+  name             String       // Master data: nom du produit
+  unit             String       // Master data: unité de mesure  
+  commodity        CommodityType @default(FERMENTATION_ADDITIVES) // Master data: type de commodité
+  quantity         Float        // Quantité requise pour cette action
   originalQuantity Float?       // Quantité de référence originale (pour les actions avec scaleWithVolume)
-  description      String?
+  description      String?      // Description du produit/utilisation
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
-  actionId     String?
-  action       Action?      @relation(fields: [actionId], references: [id])
+  // Relations
+  stockId          String?      // Un consommable peut avoir un stock
+  stock            Stock?       @relation(fields: [stockId], references: [id], onDelete: SetNull)
+  actionId         String?      // Un consommable peut avoir une seule action
+  action           Action?      @relation(fields: [actionId], references: [id], onDelete: Cascade)
 
-  @@unique([name, unit, actionId])
+  @@unique([name, unit, actionId], name: "consumable_name_unit_action") 
   @@index([actionId])
+  @@index([stockId])
+  @@index([name, unit]) // Pour recherche dans CreatableCombobox
 }
 
 model Stock {
   id          String   @id @default(cuid())
-  name        String   // Nom du consommable/produit
-  unit        String   // Unité de mesure (g, ml, L, etc.)
-  quantity    Float    // Quantité en stock
+  name        String   // Référence vers le produit (doit matcher Consumable.name)
+  unit        String   // Référence vers l'unité (doit matcher Consumable.unit)
+  quantity    Float    // Quantité disponible en stock (compteur)
   minimumQty  Float    @default(0) // Seuil d'alerte stock
-  description String?  
   userId      String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   isOutOfStock Boolean @default(false)
 
-  user User @relation(fields: [userId], references: [id])
+  // Relations
+  user        User         @relation(fields: [userId], references: [id])
+  consumables Consumable[] // Un stock peut avoir plusieurs consommables
 
   @@unique([name, unit, userId]) // Un seul stock par produit/unité/utilisateur
   @@index([userId])

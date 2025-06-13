@@ -3,7 +3,7 @@ import {
   type ActionFunctionArgs
 } from "@remix-run/node";
 import { Form, Link } from "@remix-run/react";
-import { Grape } from "lucide-react";
+import { AlertTriangle, Grape } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 import { Field } from "../../components/forms";
@@ -166,7 +166,7 @@ export function CreateMyCellarBatchDialog({ tank, batches }: { tank: MyCellarLoa
           Cuvées
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Cuvée pour {tank.name}</DialogTitle>
         </DialogHeader>
@@ -255,7 +255,10 @@ export function CreateMyCellarBatchDialog({ tank, batches }: { tank: MyCellarLoa
                               Total: {batch.quantity}L • Alloué: {batch.totalAllocated}L
                             </p>
                             {batch.isFullyAllocated && (
-                              <p className="text-xs text-amber-600">⚠️ Cuvée entièrement allouée</p>
+                              <p className="text-xs text-amber-600 flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4" />
+                                Cuvée entièrement allouée
+                              </p>
                             )}
                           </div>
                         </div>
@@ -282,10 +285,11 @@ export function CreateMyCellarBatchDialog({ tank, batches }: { tank: MyCellarLoa
                                   className: "text-xs font-medium text-gray-700"
                                 }}
                               />
-                              <div className="flex space-x-1 mt-1">
+                              <div className="flex space-x-1 mt-1 items-center">
                                 <span className="text-xs text-gray-500">Suggestions:</span>
-                                <button
+                                <Button
                                   type="button"
+                                  variant="link"
                                   className="text-xs text-blue-600 hover:text-blue-800 underline"
                                   onClick={(e) => {
                                     const input = e.currentTarget.parentElement?.parentElement?.parentElement?.querySelector('input[name="allocatedVolume"]') as HTMLInputElement;
@@ -293,10 +297,11 @@ export function CreateMyCellarBatchDialog({ tank, batches }: { tank: MyCellarLoa
                                   }}
                                 >
                                   Max ({maxAssignableVolume}L)
-                                </button>
+                                </Button>
                                 {maxAssignableVolume >= 1000 && (
-                                  <button
+                                  <Button
                                     type="button"
+                                    variant="link"
                                     className="text-xs text-blue-600 hover:text-blue-800 underline"
                                     onClick={(e) => {
                                       const input = e.currentTarget.parentElement?.parentElement?.parentElement?.querySelector('input[name="allocatedVolume"]') as HTMLInputElement;
@@ -304,7 +309,7 @@ export function CreateMyCellarBatchDialog({ tank, batches }: { tank: MyCellarLoa
                                     }}
                                   >
                                     1000L
-                                  </button>
+                                  </Button>
                                 )}
                               </div>
                             </div>

@@ -13,7 +13,7 @@ import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { AppSidebar } from "./components/ui/app-sidebar";
-import { SidebarProvider } from "./components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "./components/ui/sidebar";
 import { getOptionalUser } from "./server/auth.server";
 
 export const links: LinksFunction = () => [
@@ -62,6 +62,7 @@ declare module "@remix-run/node" {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const user = useOptionalUser();
   return (
     <html lang="en" className="light" suppressHydrationWarning>
       <head>
@@ -71,23 +72,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body className="min-h-screen flex flex-col bg-primary-foreground">
-        <ThemeProvider
+        {user ? <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <Header />
           <SidebarProvider>
             <AppSidebar />
+            <SidebarInset>
+              <div className="flex-1">
+                {children}
+                <Footer />
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
+        </ThemeProvider> :
+          <>
+            <Header />
             <div className="flex-1">
               {children}
               <Footer />
             </div>
-          </SidebarProvider>
-          <ScrollRestoration />
-          <Scripts />
-        </ThemeProvider>
+          </>}
+        <ScrollRestoration />
+        <Scripts />
       </body>
     </html>
   );

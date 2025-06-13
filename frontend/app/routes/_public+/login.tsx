@@ -11,9 +11,7 @@ import { z } from "zod";
 import { Field } from "../../components/forms";
 import { Button } from "../../components/ui/button";
 import {
-  authenticateUser,
-  checkIfUserExists,
-  getOptionalUser,
+  getOptionalUser
 } from "../../server/auth.server";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
@@ -32,8 +30,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     schema: LoginSchema.superRefine(async (data, ctx) => {
       const { email, password } = data;
 
-      const existingUser = await checkIfUserExists({
-        context,
+      const existingUser = await context.remixService.auth.checkIfUserExists({
         email,
         withPassword: true,
         password,
@@ -59,13 +56,14 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   // connecter l'utilisateur.
   const { email } = submission.value;
 
-  const { sessionToken } = await authenticateUser({
-    context,
+  const { sessionToken } = await context.remixService.auth.authenticateUser({
     email,
   });
 
+  const urlParams = new URL(request.url).searchParams
+  const redirectTo = urlParams.get('redirectTo') || '/';
   // Connecter l'utilisateur associé à l'email
-  return redirect(`/authenticate?token=${sessionToken}`);
+  return redirect(`/authenticate?token=${sessionToken}&redirectTo=${redirectTo}`);
 };
 
 const LoginSchema = z.object({

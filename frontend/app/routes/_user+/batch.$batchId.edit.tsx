@@ -2,7 +2,7 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { ActionFunctionArgs, redirect } from "@remix-run/node";
 import { Form, useActionData, useNavigation } from "@remix-run/react";
-import { Settings } from "lucide-react";
+import { Settings, Trash } from "lucide-react";
 import { useState } from "react";
 import { Field } from "../../components/forms";
 import { Button } from "../../components/ui/button";
@@ -76,7 +76,7 @@ export function EditBatchDialog({ batch }: { batch: BatchLoaderData['batches'][n
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="icon" className="size-8">
           <Settings className="w-4 h-4" />
         </Button>
       </DialogTrigger>
@@ -115,8 +115,10 @@ export function EditBatchDialog({ batch }: { batch: BatchLoaderData['batches'][n
               variant="destructive"
               onClick={() => setShowDeleteConfirm(true)}
               disabled={isSubmitting}
+              className="size-8"
+              size="icon"
             >
-              Supprimer
+              <Trash className="w-4 h-4" />
             </Button>
             <div className="flex space-x-2">
               <Button

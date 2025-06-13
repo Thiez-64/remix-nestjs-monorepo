@@ -4,6 +4,7 @@ import { CreatableCombobox } from "./creatable-combobox";
 import { Checkbox, type CheckboxProps } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Textarea } from "./ui/textarea";
 
 export const Field = ({
@@ -149,19 +150,21 @@ export function CreatableComboboxField({
   onChange,
   options,
   errors,
+  dropUp,
 }: {
   labelsProps: React.LabelHTMLAttributes<HTMLLabelElement>;
   value: string;
   onChange: (values: string) => void;
   options: Array<{ id: string; name: string }>;
   errors?: string[] | undefined;
+    dropUp?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1">
       <label className="text-gray-500 text-sm" {...labelsProps}>
         {labelsProps.children}
       </label>
-      <CreatableCombobox value={value} onChange={onChange} options={options} />
+      <CreatableCombobox value={value} onChange={onChange} options={options} dropUp={dropUp} />
       {errors ? (
         <ul role="alert" className="text-red-600 flex flex-col gap-y-0.5">
           {errors.map((error) => (
@@ -171,4 +174,86 @@ export function CreatableComboboxField({
       ) : null}
     </div>
   );
+}
+
+export function ControlledSelectField({
+  labelsProps,
+  value,
+  onChange,
+  errors,
+  options,
+}: {
+  labelsProps: React.LabelHTMLAttributes<HTMLLabelElement>;
+  value: string;
+  onChange: (value: string) => void;
+  errors?: string[] | undefined;
+  options: Array<{ id: string; name: string }>;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-gray-500 text-sm" {...labelsProps}>
+        {labelsProps.children}
+      </label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="w-full bg-white text-gray-500 text-sm">
+          <SelectValue placeholder="Sélectionner une commodité" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {
+        errors ? (
+          <ul role="alert" className="text-red-600 flex flex-col gap-y-0.5">
+            {errors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        ) : null
+      }
+    </div >
+  )
+}
+
+export function SelectField({
+  labelsProps,
+  name,
+  defaultValue,
+  errors,
+  options,
+}: {
+  labelsProps: React.LabelHTMLAttributes<HTMLLabelElement>;
+  name: string;
+  defaultValue: string;
+  errors?: string[] | undefined;
+  options: Array<{ id: string; name: string }>;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-gray-500 text-sm" {...labelsProps}>
+        {labelsProps.children}
+      </label>
+      <Select name={name} defaultValue={defaultValue}>
+        <SelectTrigger className="w-full bg-white text-gray-500 text-sm">
+          <SelectValue placeholder="Sélectionner un statut" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {
+        errors ? (
+          <ul role="alert" className="text-red-600 flex flex-col gap-y-0.5">
+            {errors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        ) : null
+      }
+    </div >
+  )
 }

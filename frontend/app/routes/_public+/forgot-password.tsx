@@ -8,13 +8,12 @@ import {
 import { Form, useActionData } from "@remix-run/react";
 import { ShieldUser } from "lucide-react";
 import { z } from "zod";
-import { Field } from "~/components/forms";
-import { Button } from "~/components/ui/button";
+import { Field } from "../../components/forms";
+import { Button } from "../../components/ui/button";
 import {
-  checkIfUserExists,
   generatePasswordResetToken,
-  getOptionalUser,
-} from "~/server/auth.server";
+  getOptionalUser
+} from "../../server/auth.server";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await getOptionalUser({ context });
@@ -36,8 +35,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     schema: ForgotPasswordSchema.superRefine(async (data) => {
       const { email } = data;
 
-      const existingUser = await checkIfUserExists({
-        context,
+      const existingUser = await context.remixService.auth.checkIfUserExists({
         email,
         withPassword: false,
         password: "",

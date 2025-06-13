@@ -17,16 +17,25 @@ export const getOptionalUser = async ({
     .nullable()
     .parse(context.user);
   if (user) {
-    return await context.remixService.getUser({ userId: user.id });
+    return await context.remixService.getUser({
+      userId: user.id,
+    });
   }
   return null;
 };
 
-export const requireUser = async ({ context }: { context: AppLoadContext }) => {
+export const requireUser = async ({
+  context,
+  redirectTo = "/",
+}: {
+  context: AppLoadContext;
+  redirectTo?: string;
+}) => {
   const user = await getOptionalUser({ context });
   if (!user) {
-    throw redirect("/login");
+    throw redirect(`/login?redirectTo=${redirectTo}`);
   }
+
   return user;
 };
 
@@ -81,24 +90,6 @@ export const authenticateUser = async ({
 }) => {
   return await context.remixService.auth.authenticateUser({
     email,
-  });
-};
-
-export const checkIfUserExists = async ({
-  context,
-  email,
-  withPassword,
-  password,
-}: {
-  context: AppLoadContext;
-  email: string;
-  withPassword: boolean;
-  password: string;
-}) => {
-  return await context.remixService.auth.checkIfUserExists({
-    email,
-    withPassword,
-    password,
   });
 };
 

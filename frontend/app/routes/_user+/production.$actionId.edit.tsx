@@ -2,9 +2,9 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { ActionFunctionArgs, redirect } from "@remix-run/node";
 import { Form, useActionData, useNavigation } from "@remix-run/react";
-import { Plus, Settings, X } from "lucide-react";
+import { Settings, Trash } from "lucide-react";
 import { useState } from "react";
-import { CreatableComboboxField, Field, } from "../../components/forms";
+import { Field } from "../../components/forms";
 import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { requireUser } from "../../server/auth.server";
@@ -274,24 +274,15 @@ export const action = async ({
 
 export function EditActionDialog({
   production,
-  stocks
 }: {
     production: ProductionLoaderData['actions'][number],
-    stocks: ProductionLoaderData['stocks']
 }) {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const [open, setOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [consumables, setConsumables] = useState(
-    production.consumables?.map(c => ({
-      name: c.name,
-      unit: c.unit,
-      quantity: c.quantity,
-      description: c.description || ""
-    })) || [{ name: "", unit: "", quantity: 0, description: "" }]
-  );
+
 
   const [form, fields] = useForm({
     id: "edit-action",
@@ -311,24 +302,11 @@ export function EditActionDialog({
     },
   });
 
-  const addConsumable = () => {
-    setConsumables([...consumables, { name: "", unit: "", quantity: 0, description: "" }]);
-  };
-
-  const removeConsumable = (index: number) => {
-    setConsumables(consumables.filter((_, i) => i !== index));
-  };
-
-  const updateConsumable = (index: number, field: string, value: string | number) => {
-    const updated = [...consumables];
-    updated[index] = { ...updated[index], [field]: value };
-    setConsumables(updated);
-  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="icon" className="size-8">
           <Settings className="w-4 h-4" />
         </Button>
       </DialogTrigger>
@@ -363,112 +341,9 @@ export function EditActionDialog({
 
 
 
-          {/* Section Consommables */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-700">
-                Consommables requis
-              </h3>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addConsumable}
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Ajouter
-              </Button>
-            </div>
 
-            <div className="space-y-3 max-h-60 overflow-y-auto">
-              {consumables.map((consumable, index) => (
-                <div key={index} className="p-6 border rounded-lg bg-gray-50 space-y-2 relative">
-                  {consumables.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeConsumable(index)}
-                      className="absolute top-2 right-2"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                  <CreatableComboboxField
-                    labelsProps={{ children: "Nom" }}
-                    value={consumable.name}
-                    onChange={(value) => updateConsumable(index, "name", value)}
-                    options={stocks.map(s => ({ id: s.id, name: s.name }))}
-                  />
-                  <div className="flex w-full gap-2">
-                    <div className="w-1/2">
-                      <Field
-                        inputProps={{
-                          type: "number",
-                          placeholder: "Quantité",
-                          step: "0.1",
-                          min: "0",
-                          value: consumable.quantity || "",
-                          onChange: (e) => updateConsumable(index, "quantity", parseFloat(e.target.value) || 0),
-                          className: "h-8 text-sm",
-                        }}
-                        labelsProps={{ children: "Quantité" }}
-                      />
-                    </div>
-                    <div className="w-1/2">
-                      <Field
-                        inputProps={{
-                          type: "text",
-                          placeholder: "Unité",
-                          value: consumable.unit,
-                          onChange: (e) => updateConsumable(index, "unit", e.target.value),
-                          className: "h-8 text-sm",
-                        }}
-                        labelsProps={{ children: "Unité" }}
-                      />
-                    </div>
 
-                  </div>
-                  <Field
-                    inputProps={{
-                      type: "text",
-                      placeholder: "Description (optionnel)",
-                      value: consumable.description,
-                      onChange: (e) => updateConsumable(index, "description", e.target.value),
-                      className: "h-8 text-sm",
-                    }}
-                    labelsProps={{ children: "Description" }}
-                  />
-                </div>
-              ))}
-            </div>
 
-            {/* Hidden inputs pour les consommables */}
-            {consumables.map((consumable, index) => (
-              <div key={`hidden-${index}`} className="hidden">
-                <input
-                  type="hidden"
-                  name={`consumables[${index}].name`}
-                  value={consumable.name}
-                />
-                <input
-                  type="hidden"
-                  name={`consumables[${index}].quantity`}
-                  value={consumable.quantity}
-                />
-                <input
-                  type="hidden"
-                  name={`consumables[${index}].unit`}
-                  value={consumable.unit}
-                />
-                <input
-                  type="hidden"
-                  name={`consumables[${index}].description`}
-                  value={consumable.description}
-                />
-              </div>
-            ))}
-          </div>
 
           <div className="flex justify-between">
             <Button
@@ -476,8 +351,10 @@ export function EditActionDialog({
               variant="destructive"
               onClick={() => setShowDeleteConfirm(true)}
               disabled={isSubmitting}
+              className="size-8"
+              size="icon"
             >
-              Supprimer
+              <Trash className="w-4 h-4" />
             </Button>
             <div className="flex space-x-2">
               <Button

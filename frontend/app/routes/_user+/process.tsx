@@ -1,6 +1,8 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
+import type { Action, Process, Stock } from "@prisma/client";
 import {
+  redirect,
   type ActionFunctionArgs,
   type LoaderFunctionArgs
 } from "@remix-run/node";
@@ -32,36 +34,63 @@ import { ProcessSchema } from "./process.schema";
 
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
-  const user = await requireUser({ context });
-  const [processes, allActions] = await Promise.all([context.remixService.prisma.process.findMany({
-    where: { userId: user.id },
-    include: {
-      actions: {
-        include: {
-          consumables: true, // Inclure les consommables
+  const user = await requireUser({ context });  
+  if (!["USER"].includes(user.role)) {
+    return redirect("/unauthorized");
+  }
+  const [processes, allActions, stocks] = await Promise.all([
+    context.remixService.prisma.process.findMany({
+      where: { userId: user.id },
+      include: {
+        actions: {
+          include: {
+            consumables: true,
+          },
+          orderBy: { createdAt: 'asc' },
         },
-        orderBy: { createdAt: 'asc' },
-      },
-      batch: {
-        include: {
-          tanks: true, // Inclure les tanks pour récupérer la capacité
+        batch: {
+          include: {
+            tanks: true,
+          },
         },
       },
-    },
-    orderBy: { name: "asc" },
-  }),
-  context.remixService.prisma.action.findMany({
-    where: {
-      userId: user.id,
-      processId: null, // Seulement les actions template
-    },
-    orderBy: { type: "asc" },
-  })]);
+      orderBy: { name: "asc" },
+    }),
+    context.remixService.prisma.action.findMany({
+      where: {
+        userId: user.id,
+        processId: null,
+      },
+      orderBy: { type: "asc" },
+    }),
+    context.remixService.prisma.stock.findMany({
+      where: { userId: user.id },
+      orderBy: { name: 'asc' },
+    })
+  ]);
 
-  return { processes, allActions };
+  return { processes, allActions, stocks };
 };
 
-export type ProcessLoaderData = Awaited<ReturnType<typeof loader>>;
+export type ProcessLoaderData = {
+  processes: (Process & {
+    actions: (Action & {
+      consumables: {
+        name: string;
+        quantity: number;
+        unit: string;
+      }[];
+    })[];
+    batch?: {
+      tanks: {
+        id: string;
+        allocatedVolume: number;
+      }[];
+    } | null;
+  })[];
+  allActions: Action[];
+  stocks: Stock[];
+};
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const user = await requireUser({ context });
@@ -119,11 +148,24 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
 
 export default function Process() {
-  const { processes, allActions } = useLoaderData<typeof loader>();
+  const { processes, allActions, stocks } = useLoaderData<ProcessLoaderData>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const [open, setOpen] = useState(false);
+
+  // Fonction helper pour calculer la date de fin d'un processus
+  const calculateProcessEndDate = (process: typeof processes[0]): Date | null => {
+    if (!process.startDate || !process.actions?.length) {
+      return null;
+    }
+
+    const totalDuration = process.actions.reduce((sum, action) => sum + action.duration, 0);
+    const endDate = new Date(process.startDate);
+    endDate.setDate(endDate.getDate() + totalDuration);
+
+    return endDate;
+  };
 
   const [form, fields] = useForm({
     id: "create-process",
@@ -231,17 +273,20 @@ export default function Process() {
               <CardContent>
                 <div className="space-y-4">
                   {process.startDate && (
-                    <div className="text-sm text-gray-600">
-                      <p>Début : {new Date(process.startDate).toLocaleDateString()}</p>
+                    <div className="flex flex-row gap-2 items-center text-sm text-gray-600">
+                      <p className="font-bold">Début :</p>
+                      <p>{new Date(process.startDate).toLocaleDateString()}</p>
+                      <p className="font-bold">Fin :</p>
+                      <p>{calculateProcessEndDate(process)?.toLocaleDateString() || "Non calculable"}</p>
                     </div>
                   )}
 
                   {/* Timeline des actions */}
                   {process.actions && process.actions.length > 0 && (
-                    <div className="space-y-3">
+                    <div className="space-y-3 space-x-2">
                       <h4 className="text-sm font-bold text-gray-600">Actions assignées</h4>
-                      <div className="relative">
-                        <div className="flex items-start space-x-6 overflow-x-auto pb-2">
+                      <div className="space-x-2 overflow-x-auto max-w-[55vw]">
+                        <div className="space-x-6 flex pb-2">
                           {process.actions
                             .sort((a, b) => {
                               // Actions avec date d'abord, triées par date
@@ -286,11 +331,21 @@ export default function Process() {
                               }
 
                               // Vérifier si l'action est prête à démarrer
-                              const hasConsumables = action.consumables && action.consumables.length > 0;
-                              const isReady = hasConsumables || !action.needsPurchase;
+                              const hasValidConsumables = action.consumables?.every(c =>
+                                c.name && c.quantity > 0 && c.unit
+                              );
+
+                              // Vérifier si les stocks sont suffisants pour les consommables
+                              const hasEnoughStock = action.consumables?.every(consumable => {
+                                if (!consumable.name || !consumable.quantity) return false;
+                                const stock = stocks.find(s => s.name === consumable.name);
+                                return stock && stock.quantity >= consumable.quantity;
+                              });
+
+                              const isReady = action.needsPurchase ? (hasValidConsumables && hasEnoughStock) : true;
 
                               return (
-                                <div key={action.id} className="flex flex-col items-center min-w-0 relative">
+                                <div key={action.id} className="flex flex-col items-center min-w-52 relative">
                                   {/* Ligne de connexion */}
                                   {index !== process.actions.length - 1 && (
                                     <div className="absolute top-3 left-full w-6 h-px bg-gray-200 z-0" />
@@ -306,7 +361,6 @@ export default function Process() {
                                     <p className={`text-sm font-medium ${statusColor} truncate`}>
                                       {action.type}
                                     </p>
-
 
                                     {/* Date si assignée */}
                                     {action.assignedDate && (
@@ -328,12 +382,16 @@ export default function Process() {
                                           <Circle className="w-2 h-2" />
                                           Prêt
                                         </Badge>
-                                      ) : (
-                                          <Badge variant="secondary" className="bg-orange-200 text-orange-800 flex items-center gap-1">
+                                      ) : action.needsPurchase ? (
+                                        <Badge variant="secondary" className="bg-orange-200 text-orange-800 flex items-center gap-1">
                                             <Circle className="w-2 h-2" />
-                                          En attente
+                                            {hasValidConsumables ? "Stock insuffisant" : "Consommables requis"}
                                           </Badge>
-
+                                        ) : (
+                                          <Badge variant="secondary" className="bg-gray-200 text-gray-800 flex items-center gap-1">
+                                              <Circle className="w-2 h-2" />
+                                          En attente
+                                            </Badge>
                                       )}
                                     </div>
 

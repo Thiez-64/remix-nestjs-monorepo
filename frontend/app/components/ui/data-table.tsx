@@ -107,7 +107,8 @@ export function DataTable<
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
+            className="size-8"
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
           >
@@ -115,7 +116,8 @@ export function DataTable<
           </Button>
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
+            className="size-8"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
@@ -123,7 +125,8 @@ export function DataTable<
           </Button>
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
+            className="size-8"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
@@ -131,7 +134,8 @@ export function DataTable<
           </Button>
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
+            className="size-8"
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
           >

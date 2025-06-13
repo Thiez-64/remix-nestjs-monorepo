@@ -55,7 +55,6 @@ export const action = async ({
           unit: data.unit,
           quantity: data.quantity,
           minimumQty: data.minimumQty,
-          description: data.description,
           userId: user.id,
           id: { not: stockId },
         },
@@ -93,7 +92,6 @@ export const action = async ({
       unit: submission.value.unit,
       quantity: submission.value.quantity,
       minimumQty: submission.value.minimumQty,
-      description: submission.value.description,
     },
   });
 
@@ -124,7 +122,6 @@ export function EditStockDialog({
       unit: stock.unit,
       quantity: stock.quantity,
       minimumQty: stock.minimumQty,
-      description: stock.description || "",
     },
     onSubmit() {
       setOpen(false);
@@ -135,7 +132,7 @@ export function EditStockDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="icon" className="size-8">
           <Settings className="w-4 h-4" />
         </Button>
       </DialogTrigger>

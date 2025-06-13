@@ -8,9 +8,9 @@ import {
 import { Form, useActionData } from "@remix-run/react";
 import { LockKeyhole } from "lucide-react";
 import { z } from "zod";
-import { Field } from "~/components/forms";
-import { Button } from "~/components/ui/button";
-import { getOptionalUser, resetPassword } from "~/server/auth.server";
+import { Field } from "../../components/forms";
+import { Button } from "../../components/ui/button";
+import { getOptionalUser, resetPassword } from "../../server/auth.server";
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   const user = await getOptionalUser({ context });
