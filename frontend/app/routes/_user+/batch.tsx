@@ -1,20 +1,22 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import { useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { Hourglass, Plus, Square, SquareCheck, Wine } from "lucide-react";
 import { useState } from "react";
-import { Field } from "../../components/forms";
+import { ActionButtons } from "../../components/action-buttons";
+import { CreateDialog } from "../../components/create-dialog";
+import { EmptyState } from "../../components/empty-state";
+import { Field, SelectField } from "../../components/forms";
+import { PageLayout } from "../../components/page-layout";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
+import { BatchSchema } from "../../lib/schemas";
+import { batchTypeOptions, formatBatchGrapeVarieties } from "../../lib/utils";
 import { requireUser } from "../../server/auth.server";
 import { EditBatchDialog } from "./batch.$batchId.edit";
 import { CreateBatchProcessDialog } from "./batch.$batchId.process";
-import { BatchSchema } from "./batch.schema";
-
-
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await requireUser({ context });
@@ -22,6 +24,19 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   const [batches, assignedProcessIds, tanks] = await Promise.all([
     context.remixService.prisma.batch.findMany({
       where: { userId: user.id },
+      include: {
+        plotBatches: {
+          select: {
+            quantityUsed: true,
+            plot: {
+              select: {
+                name: true,
+                grapeVariety: true
+              }
+            }
+          }
+        }
+      }
     }),
     context.remixService.prisma.batch.findMany({
       where: {
@@ -30,10 +45,17 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
       },
       select: { processId: true }
     }),
-    // Récupérer les tanks pour calculer les allocations
+    // Récupérer les tanks avec leurs allocations via tankBatches
     context.remixService.prisma.tank.findMany({
       where: { userId: user.id },
-      select: { batchId: true, allocatedVolume: true }
+      select: {
+        tankBatches: {
+          select: {
+            batchId: true,
+            allocatedVolume: true
+          }
+        }
+      }
     })
   ]);
 
@@ -41,10 +63,12 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   const batchAllocations = new Map<string, number>();
 
   tanks.forEach(tank => {
-    if (tank.batchId && tank.allocatedVolume > 0) {
-      const currentAllocation = batchAllocations.get(tank.batchId) || 0;
-      batchAllocations.set(tank.batchId, currentAllocation + tank.allocatedVolume);
-    }
+    tank.tankBatches.forEach(tankBatch => {
+      if (tankBatch.allocatedVolume > 0) {
+        const currentAllocation = batchAllocations.get(tankBatch.batchId) || 0;
+        batchAllocations.set(tankBatch.batchId, currentAllocation + tankBatch.allocatedVolume);
+      }
+    });
   });
 
   // Enrichir les batches avec leurs informations d'allocation
@@ -134,7 +158,6 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
 export default function Batch() {
   const { batches, processesExcludedIds, processes } = useLoaderData<BatchLoaderData>();
-
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -153,179 +176,178 @@ export default function Batch() {
     defaultValue: {
       name: "",
       description: "",
-      quantity: 0
+      quantity: 0,
+      type: "MONO_GRAPE"
     },
   });
 
-  console.log('fields.name', fields.name)
-  return <div className="container mx-auto py-10">
-    <div className="flex justify-between items-center mb-8">
-      <div>
-        <h1 className="text-3xl font-bold">Cuvée de Vinification</h1>
-        <p className="text-gray-600">
-          Créez et gérez vos cuvée de vinification
-        </p>
-      </div>
+  return (
+    <PageLayout
+      title="Cuvée de Vinification"
+      description="Créez et gérez vos cuvée de vinification"
+      actionButton={{
+        label: "Nouvelle Cuvée",
+        icon: <Plus className="w-4 h-4 mr-2" />,
+        onClick: () => setOpen(true)
+      }}
+    >
+      <CreateDialog
+        trigger={<Button style={{ display: 'none' }} />} // Hidden trigger since we control via state
+        title="Créer une nouvelle cuvée"
+        formProps={getFormProps(form)}
+        isOpen={open}
+        onOpenChange={setOpen}
+        isSubmitting={isSubmitting}
+        submitLabel="Créer la cuvée"
+      >
+        <Field
+          inputProps={getInputProps(fields.name, { type: "text" })}
+          labelsProps={{ children: "Nom de la cuvée (ex: Cuvée Chateau)" }}
+          errors={fields.name.errors}
+        />
+        <Field
+          inputProps={getInputProps(fields.description, { type: "text" })}
+          labelsProps={{ children: "Description (optionnel)" }}
+          errors={fields.description.errors}
+        />
+        <SelectField
+          selectProps={getInputProps(fields.type, { type: "text" })}
+          labelsProps={{ children: "Type de cuvée" }}
+          errors={fields.type.errors}
+          placeholder="Sélectionnez le type"
+          options={batchTypeOptions}
+        />
+        <Field
+          inputProps={getInputProps(fields.quantity, { type: "number" })}
+          labelsProps={{ children: "Quantité (en hL)" }}
+          errors={fields.quantity.errors}
+        />
+      </CreateDialog>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Nouvelle Cuvée
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Créer une nouvelle cuvée</DialogTitle>
-          </DialogHeader>
+      <div className="grid gap-4">
+        {batches.length === 0 ? (
+          <EmptyState
+            icon={<Wine className="mx-auto h-12 w-12" />}
+            title="Aucune cuvée"
+            description="Commencez par créer votre première cuvée de vinification"
+          />
+        ) : (
+          batches.map((batch) => (
+            <Card key={batch.id} className={`${batch.isFullyAllocated
+              ? 'border-green-300 bg-green-50'
+              : batch.totalAllocated > 0
+                ? 'border-blue-300 bg-blue-50'
+                : 'border-gray-300'
+              }`}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <CardTitle>{batch.name}</CardTitle>
 
-          <Form {...getFormProps(form)} method="POST" className="space-y-4">
-            <Field
-              inputProps={getInputProps(fields.name, { type: "text" })}
-              labelsProps={{ children: "Nom de la cuvée (ex: Cuvée Chateau)" }}
-              errors={fields.name.errors}
-            />
+                      {/* Badge pour le type de batch - À activer après migration */}
+                      {/* <Badge variant="secondary" className={batchTypeColors[batch.type as keyof typeof batchTypeColors] || batchTypeColors.MONO_GRAPE}>
+                        {batchTypeLabels[batch.type as keyof typeof batchTypeLabels] || "Mono-cépage"}
+                      </Badge> */}
 
-            <Field
-              inputProps={getInputProps(fields.description, { type: "text" })}
-              labelsProps={{ children: "Description (optionnel)" }}
-              errors={fields.description.errors}
-            />
+                      {/* Badge pour l'allocation */}
+                      <Badge variant="secondary" className={batch.isFullyAllocated
+                        ? 'bg-green-200 text-green-800'
+                        : batch.totalAllocated > 0
+                          ? 'bg-blue-200 text-blue-800'
+                          : 'bg-gray-200 text-gray-800'
+                      }>{batch.allocationPercentage}% en cuve</Badge>
 
-            <Field
-              inputProps={getInputProps(fields.quantity, { type: "number" })}
-              labelsProps={{ children: "Quantité (en litres)" }}
-              errors={fields.quantity.errors}
-            />
-
-            <div className="flex justify-end space-x-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                Annuler
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Création..." : "Créer la cuvée"}
-              </Button>
-            </div>
-          </Form>
-        </DialogContent>
-      </Dialog>
-    </div>
-
-    <div className="grid gap-4">
-      {batches.length === 0 ? (
-        <Card>
-          <CardContent className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <Wine className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Aucune cuvée</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Commencez par créer votre première cuvée de vinification
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        batches.map((batch) => (
-          <Card key={batch.id} className={`${batch.isFullyAllocated
-            ? 'border-green-300 bg-green-50'
-            : batch.totalAllocated > 0
-              ? 'border-blue-300 bg-blue-50'
-              : 'border-gray-300'
-            }`}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <CardTitle>{batch.name}</CardTitle>
-                    <Badge variant="secondary" className={batch.isFullyAllocated
-                      ? 'bg-green-200 text-green-800'
-                      : batch.totalAllocated > 0
-                        ? 'bg-blue-200 text-blue-800'
-                        : 'bg-gray-200 text-gray-800'
-                    }>{batch.allocationPercentage}% en cuve</Badge>
-
-                  </div>
-                  {batch.description && (
-                    <CardDescription>{batch.description}</CardDescription>
-                  )}
-                </div>
-                <div className="flex space-x-2">
-                  {/* eslint-disable @typescript-eslint/no-explicit-any */}
-                  <CreateBatchProcessDialog
-                    batch={batch as any}
-                    processes={processes as any}
-                    processesExcludedIds={processesExcludedIds as any}
-                  />
-                  <EditBatchDialog batch={batch as any} />
-                  {/* eslint-enable @typescript-eslint/no-explicit-any */}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="text-sm text-gray-600 flex flex-row gap-2 items-center">
-                  <p className="font-bold">Quantité totale :</p>
-                  <p> {batch.quantity} litres</p>
-                  {batch.totalAllocated > 0 && (
-                    <>
-                      <p className="font-bold">Volume en cuve :</p>
-                      <p> {batch.totalAllocated}L</p>
-                      <p className="font-bold">Volume restant :</p>
-                      <p> {batch.remainingVolume}L</p>
-                    </>
-                  )}
-                </div>
-
-                {/* Barre de progression */}
-                <div>
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
-                    <span>Mise en cuve</span>
-                    <span>{batch.totalAllocated}L / {batch.quantity}L</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all ${batch.isFullyAllocated ? 'bg-green-500' : 'bg-blue-500'
-                        }`}
-                      style={{ width: `${batch.allocationPercentage}%` }}
-                    ></div>
-                  </div>
-
-                  {/* Status */}
-                  <div className="mt-2">
-                    {batch.isFullyAllocated ? (
-                      <div className="flex items-center gap-2">
-                        <SquareCheck className="w-4 h-4 text-green-600" />
-                        <p className="text-xs text-green-600 font-medium">
-                          Entièrement mise en cuve
-                        </p>
-                      </div>
-                    ) : batch.totalAllocated > 0 ? (
-                      <div className="flex items-center gap-2">
-                        <Square className="w-4 h-4 text-blue-600" />
-                        <p className="text-xs text-blue-600 font-medium">
-                          Partiellement mise en cuve
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Hourglass className="w-4 h-4 text-gray-500" />
-                        <p className="text-xs text-gray-500">
-                          En attente de mise en cuve
-                        </p>
-                      </div>
-
+                      {/* Badge d'incohérence - À activer après migration */}
+                      {/* {batch.plotBatches && batch.plotBatches.length > 0 && 
+                       !isBatchTypeConsistent(batch, batch.type) && (
+                        <Badge variant="destructive" className="bg-red-100 text-red-800">
+                          ⚠️ Incohérent
+                        </Badge>
+                      )} */}
+                    </div>
+                    {batch.description && (
+                      <CardDescription>{batch.description}</CardDescription>
                     )}
                   </div>
+                  <ActionButtons>
+
+                    <CreateBatchProcessDialog
+                      batch={batch as unknown as BatchLoaderData['batches'][number]}
+                      processes={processes as unknown as BatchLoaderData['processes']}
+                      processesExcludedIds={processesExcludedIds as unknown as BatchLoaderData['processesExcludedIds']}
+                    />
+                    <EditBatchDialog batch={batch as unknown as BatchLoaderData['batches'][number]} />
+                  </ActionButtons>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))
-      )}
-    </div>
-  </div>;
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-600 flex flex-row gap-2 items-center">
+                    <p className="font-bold">Quantité totale :</p>
+                    <p> {batch.quantity} hL</p>
+                    {batch.totalAllocated > 0 && (
+                      <>
+                        <p className="font-bold">Volume en cuve :</p>
+                        <p> {batch.totalAllocated} hL</p>
+                        <p className="font-bold">Volume restant :</p>
+                        <p> {batch.remainingVolume} hL</p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Affichage des cépages */}
+                  <div className="text-sm text-gray-600 flex flex-row gap-2 items-center">
+                    <p className="font-bold">Composition :</p>
+                    <p>{formatBatchGrapeVarieties(batch as { id: string; plotBatches: { plot: { grapeVariety: string }; quantityUsed: number }[] })}</p>
+                  </div>
+
+                  {/* Barre de progression */}
+                  <div>
+                    <div className="flex justify-between text-xs text-gray-600 mb-1">
+                      <span>Mise en cuve</span>
+                      <span>{batch.totalAllocated} hL / {batch.quantity} hL</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${batch.isFullyAllocated ? 'bg-green-500' : 'bg-blue-500'
+                          }`}
+                        style={{ width: `${batch.allocationPercentage}%` }}
+                      ></div>
+                    </div>
+
+                    {/* Status */}
+                    <div className="mt-2">
+                      {batch.isFullyAllocated ? (
+                        <div className="flex items-center gap-2">
+                          <SquareCheck className="w-4 h-4 text-green-600" />
+                          <p className="text-xs text-green-600 font-medium">
+                            Entièrement mise en cuve
+                          </p>
+                        </div>
+                      ) : batch.totalAllocated > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <Square className="w-4 h-4 text-blue-600" />
+                          <p className="text-xs text-blue-600 font-medium">
+                            Partiellement mise en cuve
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Hourglass className="w-4 h-4 text-gray-500" />
+                          <p className="text-xs text-gray-500">
+                            En attente de mise en cuve
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </PageLayout>
+  );
 }

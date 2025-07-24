@@ -1,4 +1,4 @@
-import { Amphora, BarChart, Bell, Cylinder, Database, FileText, Home, PackageCheck, PlayCircle, ShoppingBag, SquareArrowRight, Store, User, Wine, Zap } from "lucide-react";
+import { Amphora, BarChart, Bell, Cylinder, Database, FileText, Home, PackageCheck, ShoppingBag, Sprout, SquareArrowRight, Store, User, Wine, Zap } from "lucide-react";
 import { useOptionalUser } from "../../root";
 import { NavUser } from "../nav-user";
 import {
@@ -16,27 +16,34 @@ import {
 
 const itemsUser = [
   {
-    title: "Vignification",
-    items: [{
-      title: "Cuvées",
-      url: "/batch",
-      icon: Wine,
-    },
+    title: "Domaine",
+    items: [
+      {
+        title: "Vignobles",
+        url: "/vineyard",
+        icon: Sprout,
+      },
       {
         title: "Mon Chai",
         url: "/my-cellar",
         icon: Cylinder,
       },
       {
-        title: "Processus",
-        url: "/process",
-        icon: PlayCircle,
+        title: "Cave à vin",
+        url: "/my-storage",
+        icon: Wine,
       },
       {
         title: "Production",
         url: "/production",
         icon: SquareArrowRight,
-      }]
+      },
+      // {
+      //   title: "Cuvées",
+      //   url: "/batch",
+      //   icon: Wine,
+      // },
+    ]
   }, {
     title: "Gestion",
     items: [{

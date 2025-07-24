@@ -45,7 +45,7 @@ export const action = async ({ params, request, context }: ActionFunctionArgs) =
     },
   });
 
-  console.log(`✅ Restocked ${submission.value.quantity} ${stock.unit} of ${stock.name}. New quantity: ${newQuantity}`);
+
 
   return redirect("/stock");
 }; 

@@ -14,9 +14,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../../components/ui/dialog";
+import { BatchSchema } from "../../lib/schemas";
 import { requireUser } from "../../server/auth.server";
 import { BatchLoaderData } from "./batch";
-import { BatchSchema } from "./batch.schema";
 
 export const action = async ({ request, params, context }: ActionFunctionArgs) => {
   const user = await requireUser({ context });

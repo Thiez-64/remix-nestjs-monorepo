@@ -5,11 +5,12 @@ import { useActionData, useNavigation } from "@remix-run/react";
 import { Settings } from "lucide-react";
 import { useState } from "react";
 import { EditDialog } from "../../components/edit-dialog";
-import { Field } from "../../components/forms";
+import { Field, SelectField } from "../../components/forms";
 import { Button } from "../../components/ui/button";
-import { ProcessSchema } from "../../lib/schemas";
+import { PlotSchema } from "../../lib/schemas";
+import { grapeVariety } from "../../lib/utils";
 import { requireUser } from "../../server/auth.server";
-import { ProcessLoaderData } from "./process";
+import { PlotLoaderData } from "./vineyard";
 
 export const action = async ({
   request,
@@ -17,10 +18,10 @@ export const action = async ({
   context,
 }: ActionFunctionArgs) => {
   const user = await requireUser({ context });
-  const processId = params.processId;
+  const plotId = params.plotId;
 
-  if (!processId) {
-    throw new Error("Process ID is required");
+  if (!plotId) {
+    throw new Error("Plot ID is required");
   }
 
   const formData = await request.formData();
@@ -28,41 +29,41 @@ export const action = async ({
 
   // Gestion de la suppression
   if (intent === "delete") {
-    const process = await context.remixService.prisma.process.findUnique({
-      where: { id: processId, userId: user.id },
+    const plot = await context.remixService.prisma.plot.findUnique({
+      where: { id: plotId, userId: user.id },
     });
 
-    if (!process) {
-      throw new Error("Process not found");
+    if (!plot) {
+      throw new Error("Plot not found");
     }
 
-    await context.remixService.prisma.process.delete({
-      where: { id: processId, userId: user.id },
+    await context.remixService.prisma.plot.delete({
+      where: { id: plotId, userId: user.id },
     });
 
-    return redirect(`/process`);
+    return redirect(`/vineyard`);
   }
 
   // Gestion de la modification
   const submission = await parseWithZod(formData, {
     async: true,
-    schema: ProcessSchema.superRefine(async (data, ctx) => {
-      const existingProcess = await context.remixService.prisma.process.findFirst({
+    schema: PlotSchema.superRefine(async (data, ctx) => {
+
+      const existingPlot = await context.remixService.prisma.plot.findFirst({
         where: {
           name: data.name,
           userId: user.id,
-          id: { not: processId },
+          id: { not: plotId },
         },
       });
 
-      if (existingProcess) {
+      if (existingPlot) {
         ctx.addIssue({
           code: "custom",
           path: ["name"],
-          message: "Un processus avec ce nom existe déjà",
+          message: "Un stock avec ce nom et cette unité existe déjà",
         });
       }
-
     }),
   });
 
@@ -70,30 +71,31 @@ export const action = async ({
     return submission.reply();
   }
 
-  const process = await context.remixService.prisma.process.findUnique({
-    where: { id: processId, userId: user.id },
+  const plot = await context.remixService.prisma.plot.findUnique({
+    where: { id: plotId, userId: user.id },
   });
 
-  if (!process) {
-    throw new Error("Process not found");
+  if (!plot) {
+    throw new Error("Plot not found");
   }
 
-  await context.remixService.prisma.process.update({
-    where: { id: processId },
+  await context.remixService.prisma.plot.update({
+    where: { id: plotId },
     data: {
       name: submission.value.name,
       description: submission.value.description,
-      startDate: submission.value.startDate ? new Date(submission.value.startDate) : null,
+      grapeVariety: submission.value.grapeVariety,
+      surface: submission.value.surface,
     },
   });
 
-  return redirect(`/process`);
+  return redirect(`/vineyard`);
 };
 
-export function EditProcessDialog({
-  process
+export function EditPlotDialog({
+  plot
 }: {
-  process: ProcessLoaderData['processes'][number]
+  plot: PlotLoaderData['plots'][number]
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const actionData = useActionData<typeof action>();
@@ -101,16 +103,17 @@ export function EditProcessDialog({
   const isSubmitting = navigation.state === "submitting";
 
   const [form, fields] = useForm({
-    id: "edit-process",
-    constraint: getZodConstraint(ProcessSchema),
+    id: "edit-plot",
+    constraint: getZodConstraint(PlotSchema),
     onValidate({ formData }) {
-      return parseWithZod(formData, { schema: ProcessSchema });
+      return parseWithZod(formData, { schema: PlotSchema });
     },
     lastResult: actionData,
     defaultValue: {
-      name: process.name,
-      description: process.description || "",
-      startDate: process.startDate ? new Date(process.startDate).toISOString().split('T')[0] : "",
+      name: plot.name,
+      description: plot.description,
+      grapeVariety: plot.grapeVariety,
+      surface: plot.surface,
     },
     onSubmit() {
       setIsOpen(false)
@@ -124,34 +127,41 @@ export function EditProcessDialog({
           <Settings className="w-4 h-4" />
         </Button>
       }
-      title={`Modifier ${process.name}`}
+      title={`Modifier ${plot.name}`}
       formProps={getFormProps(form)}
       isSubmitting={isSubmitting}
-      editAction={`/process/${process.id}/edit`}
-      deleteAction={`/process/${process.id}/edit`}
-      itemName={process.name}
-      itemType="le processus"
+      editAction={`/vineyard/${plot.id}/edit`}
+      deleteAction={`/vineyard/${plot.id}/edit`}
+      itemName={plot.name}
+      itemType="la parcelle"
       deleteInputs={[{ name: "intent", value: "delete" }]}
       isOpen={isOpen}
       onOpenChange={setIsOpen}
-
     >
       <Field
         inputProps={getInputProps(fields.name, { type: "text" })}
-        labelsProps={{ children: "Nom du processus" }}
+        labelsProps={{ children: "Nom de la parcelle" }}
         errors={fields.name.errors}
       />
-
       <Field
         inputProps={getInputProps(fields.description, { type: "text" })}
         labelsProps={{ children: "Description" }}
         errors={fields.description.errors}
       />
-
       <Field
-        inputProps={getInputProps(fields.startDate, { type: "date" })}
-        labelsProps={{ children: "Date de début" }}
-        errors={fields.startDate.errors}
+        inputProps={getInputProps(fields.surface, { type: "number" })}
+        labelsProps={{ children: "Surface" }}
+        errors={fields.surface.errors}
+      />
+      <SelectField
+        name={fields.grapeVariety.name}
+        defaultValue={fields.grapeVariety.value || "CHARDONNAY"}
+        labelsProps={{ children: "Cépage" }}
+        errors={fields.grapeVariety.errors}
+        options={grapeVariety.map((variety) => ({
+          id: variety.value,
+          name: variety.label
+        }))}
       />
     </EditDialog>
   );

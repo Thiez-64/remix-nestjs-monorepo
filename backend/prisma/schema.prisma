@@ -34,13 +34,6 @@ enum TankStatus {
   MAINTENANCE
 }
 
-enum BatchStatus {
-  PLANNED
-  IN_PROGRESS
-  COMPLETED
-  PAUSED
-}
-
 enum ActionStatus {
   PENDING
   IN_PROGRESS
@@ -58,6 +51,70 @@ enum CommodityType {
   PACKAGING
 }
 
+enum GrapeVarietyType {
+  CHARDONNAY
+  UGNI_BLANC
+  SAUVIGNON_BLANC
+  CHERRY_BLANC
+  GEWURZTRAMINER
+  RIESLING
+  PINOT_BLANC
+  PINOT_GRIS
+  MELON_DE_BOURGOGNE
+  CLAIRETTE
+  MUSCAT_BLANCS
+  ALIGOTE
+  VIOGNIER
+  MARSANE
+  ROUSSE
+  PICPOUL
+  SAVAGNIN
+  SEMILLON
+  BOURBOULENC
+  COLOMBARD
+  FOLLE_BLANCHE
+  MERLOT
+  GRENACHE_NOIR
+  SYRAH
+  CABERNET_SAUVIGNON
+  CARIGNAN
+  PINOT_NOIR
+  GAMAY
+  CABERNET_FRANC
+  CINSAUT
+  MOURVEDRE
+  TANNAT
+  MALBEC
+  MONDEUSE
+}
+
+enum ProductType {
+  HUITIEME            // 0.094 L
+  PICCOLO             // 0.2 L – Le Quart ou Piccolo
+  CHOPINE_025         // 0.25 L – La Chopine
+  DEMIE_FILLETTE      // 0.375 L – La Demie ou Fillette
+  CHOPINE_050         // 0.5 L – La Chopine ou Pot ou Désirée
+  MEDIUM              // 0.6 L – Le Médium
+  BOUTEILLE           // 0.75 L – La Bouteille / Champenoise / Frontignan
+  MAGNUM              // 1.5 L – 2 bouteilles
+  JEROBOAM            // 3 L – 4 bouteilles
+  REHOBOAM            // 4.5 L – 6 bouteilles
+  MATHUSALEM          // 6 L – 8 bouteilles
+  SALMANAZAR          // 9 L – 12 bouteilles
+  BALTHAZAR           // 12 L – 16 bouteilles
+  NABUCHODONOSOR      // 15 L – 20 bouteilles
+  MELCHIOR_SALOMON    // 18 L – 24 bouteilles
+  SOUVERAIN           // 26.25 L – 35 bouteilles
+  PRIMAT              // 27 L – 36 bouteilles
+  MELCHIZEDEC         // 30 L – 40 bouteilles
+  ADELAIDE            // 93 L – 124 bouteilles
+  SUBLIME             // 150 L – 200 bouteilles
+  BIB_3L
+  BIB_5L
+  BIB_10L
+  BIB_20L
+}
+
 model User {
   id                String              @id @default(uuid())
   email             String              @unique
@@ -70,9 +127,9 @@ model User {
   passwordResetTokens PasswordResetToken[]
   actions           Action[]
   tanks            Tank[]
-  processes        Process[]
-  batches          Batch[]
   stocks           Stock[]
+  plots            Plot[]
+  batches          Batch[]
 }
 
 model Session {
@@ -94,86 +151,81 @@ model PasswordResetToken {
   used      Boolean  @default(false)
 }
 
+model Plot {
+  id String @id @default(cuid())
+  name String
+  description String?
+  surface Float
+  grapeVariety GrapeVarietyType
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  plotTanks PlotTank[] // Relation many-to-many avec Tank via table de jointure
+
+  @@index([userId])
+}
+
+
 model Tank {
   id            String       @id @default(cuid())
   name          String       // Nom de la cuve: "Cuve A1", "Tank Inox 2"
   description   String?
   material      TankMaterial
-  capacity      Float        // Capacité maximale de la cuve
-  currentWine   Float        @default(0)
-  allocatedVolume Float      @default(0) // Volume de la cuvée assigné à cette cuve
+  volume        Float        // Capacité maximale de la cuve
   status        TankStatus   @default(EMPTY)
-  batchId       String?      // Batch (cuvée) assigné à ce tank
   userId        String
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  user        User         @relation(fields: [userId], references: [id])
-  batch       Batch?       @relation(fields: [batchId], references: [id])
-
-  @@index([userId])
-  @@index([batchId])
-}
-
-model Process {
-  id          String          @id @default(cuid())
-  name        String
-  description String?
-  userId      String
-  startDate   DateTime?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  user        User            @relation(fields: [userId], references: [id])
-  batch       Batch?          // Batch qui utilise ce processus
-  actions     Action[]        // Actions de ce processus (one-to-many)
- 
+  user              User                  @relation(fields: [userId], references: [id])
+  plotTanks         PlotTank[]            // Relation many-to-many avec Plot via table de jointure
+  grapeComposition  GrapeComposition[] // Composition en cépages du tank
+  actions    Action[]  // Liste des actions réalisées ou prévues
+  batches Batch[] // Liste des batches dans la cuve
 
   @@index([userId])
 }
 
-
-
-model Batch {
-  id          String      @id @default(cuid())
-  name        String
+model ActionType {
+  id          String   @id @default(cuid())
+  name        String   @unique
   description String?
-  quantity    Float
-  status      BatchStatus @default(PLANNED)
-  processId   String?     @unique // Batch a un process
-  userId      String
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  user        User        @relation(fields: [userId], references: [id])
-  process     Process?    @relation(fields: [processId], references: [id])
-  tanks       Tank[]      // Tanks qui utilisent ce batch
+  status          ActionStatus        @default(PENDING)
   
-
-  @@index([userId])
-  @@index([processId])
+  actions     Action[]
 }
+
 
 
 model Action {
-  id              String        @id @default(cuid())
-  type            String
-  description     String?
-  duration        Float
-  needsPurchase   Boolean       @default(false)
-  scaleWithVolume Boolean       @default(false)
-  referenceVolume Float?
-  status          ActionStatus        @default(PENDING)
+  id            String      @id @default(cuid())
+  tank          Tank        @relation(fields: [tankId], references: [id])
+  tankId        String
+  type          ActionType  @relation(fields: [typeId], references: [id])
+  typeId        String
+
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  duration      Int         @default(1)    // Durée en jours de l'action
+
+  previous      Action?     @relation("ActionPredecessor", fields: [previousId], references: [id])
+  previousId    String?
+  next          Action[]    @relation("ActionPredecessor")
+
+  isCompleted   Boolean     @default(false)
+  needsPurchase Boolean     @default(false)
+  
+  consumables   Consumable[] // Consommables spécifiques à cette instance d'action
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  
   userId          String
-  processId       String?
-  process         Process?      @relation(fields: [processId], references: [id])
-  consumables     Consumable[]
   user            User          @relation(fields: [userId], references: [id])
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  assignedDate    DateTime?
 
   @@index([userId])
-  @@index([processId])
+  @@index([tankId])
+  @@index([typeId])
 }
 
 model Consumable {
@@ -190,7 +242,7 @@ model Consumable {
   // Relations
   stockId          String?      // Un consommable peut avoir un stock
   stock            Stock?       @relation(fields: [stockId], references: [id], onDelete: SetNull)
-  actionId         String?      // Un consommable peut avoir une seule action
+  actionId         String?      // Un consommable appartient à une instance d'action spécifique
   action           Action?      @relation(fields: [actionId], references: [id], onDelete: Cascade)
 
   @@unique([name, unit, actionId], name: "consumable_name_unit_action") 
@@ -216,4 +268,68 @@ model Stock {
 
   @@unique([name, unit, userId]) // Un seul stock par produit/unité/utilisateur
   @@index([userId])
+}
+
+// Table de composition des cépages dans les tanks
+model GrapeComposition {
+  id            String          @id @default(cuid())
+  grapeVariety  GrapeVarietyType
+  volume        Float           // Quantité en hL de ce cépage dans le tank
+  percentage    Float?          // Pourcentage optionnel pour affichage
+  addedAt       DateTime        // Date de récolte du cépage dans le tank
+  tankId        String
+  tank          Tank            @relation(fields: [tankId], references: [id], onDelete: Cascade)
+  
+  @@unique([tankId, grapeVariety]) // Un cépage par tank maximum
+  @@index([tankId])
+}
+
+// Table de jointure pour la relation many-to-many entre Plot et Tank
+model PlotTank {
+  id              String   @id @default(cuid())
+  volume          Float    // Quantité (en hL) de cette parcelle transférée dans cette cuve
+  harvestDate     DateTime? // Date de récolte pour cette portion
+  plotId          String
+  tankId          String
+  plot            Plot     @relation(fields: [plotId], references: [id], onDelete: Cascade)
+  tank            Tank     @relation(fields: [tankId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+
+  @@index([plotId])
+  @@index([tankId])
+}
+
+
+model Batch {
+  id String @id @default(cuid())
+  name String
+  description String?
+  volume Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  userId String
+  tank   Tank   @relation(fields: [tankId], references: [id])
+  tankId String
+  products  Product[] // <--- one-to-many
+
+  @@index([userId])
+}
+
+
+
+model Product {
+  id        String   @id @default(cuid())
+  name String
+  description String?
+  type ProductType
+  quantity Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  batch     Batch    @relation(fields: [batchId], references: [id])
+  batchId   String
 }

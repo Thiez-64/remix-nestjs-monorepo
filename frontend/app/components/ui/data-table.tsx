@@ -31,13 +31,15 @@ interface DataTableProps<
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   meta?: TMeta;
+  pagination?: boolean;
+  emptyMessage?: string;
 }
 
 export function DataTable<
   TData,
   TValue,
   TMeta extends TableMeta<TData> = TableMeta<TData>,
->({ columns, data, meta }: DataTableProps<TData, TValue, TMeta>) {
+  >({ columns, data, meta, pagination = true, emptyMessage = "Aucun résultat." }: DataTableProps<TData, TValue, TMeta>) {
   const table = useReactTable({
     data,
     columns,
@@ -94,16 +96,16 @@ export function DataTable<
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center"
+                    className="h-24 text-center text-sm text-gray-500"
                 >
-                  Aucun résultat.
+                    {emptyMessage}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-between">
+      {pagination && <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -146,7 +148,7 @@ export function DataTable<
           Page {table.getState().pagination.pageIndex + 1} sur{" "}
           {table.getPageCount()}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

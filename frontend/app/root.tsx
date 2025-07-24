@@ -1,12 +1,11 @@
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import {
-  json,
   Links,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
-  useRouteLoaderData,
+  useRouteLoaderData
 } from "@remix-run/react";
 import type { RemixService } from "@thiez-64/backend";
 import { Footer } from "./components/Footer";
@@ -37,17 +36,26 @@ export const links: LinksFunction = () => [
 ];
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
-  const user = await getOptionalUser({ context });
-  return json({ user: user || null });
+  const user = await getOptionalUser({ context }); 
+  return { user };
 };
 
 export const useOptionalUser = () => {
   const data = useRouteLoaderData<typeof loader>("root");
   if (!data) {
-    throw new Error("Root Loader did not return anything");
+    return null;
   }
   return data.user;
 };
+
+export const useUser = () => {
+  const user = useOptionalUser()
+  if (!user) {
+    // return null;
+    throw new Error("L'utilisateur n'est pas connecté")
+  }
+  return user
+}
 
 declare module "@remix-run/node" {
   interface AppLoadContext {

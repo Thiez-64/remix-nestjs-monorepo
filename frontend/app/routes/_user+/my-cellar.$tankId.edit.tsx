@@ -4,27 +4,16 @@ import {
   redirect,
   type ActionFunctionArgs
 } from "@remix-run/node";
-import { Form, useActionData, useNavigation } from "@remix-run/react";
-import { Settings, Trash } from "lucide-react";
+import { useActionData, useNavigation } from "@remix-run/react";
+import { Settings } from "lucide-react";
 import { useState } from "react";
-import { Field } from "../../components/forms";
+import { EditDialog } from "../../components/edit-dialog";
+import { Field, SelectField } from "../../components/forms";
 import { Button } from "../../components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
-import { Label } from "../../components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../components/ui/select";
+import { TankSchema } from "../../lib/schemas";
+import { materialVariety, tankStateVariety } from "../../lib/utils";
 import { requireUser } from "../../server/auth.server";
 import { MyCellarLoaderData } from "./my-cellar";
-import { TankSchema } from "./my-cellar.schema";
-
-
-
-
 
 export const action = async ({
   request,
@@ -99,7 +88,7 @@ export const action = async ({
       name: submission.value.name,
       description: submission.value.description,
       material: submission.value.material,
-      capacity: submission.value.capacity,
+      volume: submission.value.volume,
       status: submission.value.status,
     },
   });
@@ -108,11 +97,10 @@ export const action = async ({
 };
 
 export function EditTankDialog({ tank }: { tank: MyCellarLoaderData['tanks'][number] }) {
+  const [isOpen, setIsOpen] = useState(false)
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
-  const [open, setOpen] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [form, fields] = useForm({
     id: "edit-tank",
@@ -125,146 +113,66 @@ export function EditTankDialog({ tank }: { tank: MyCellarLoaderData['tanks'][num
       name: tank.name,
       description: tank.description || "",
       material: tank.material,
-      capacity: tank.capacity,
+      volume: tank.volume,
       status: tank.status,
     },
     onSubmit() {
-      setOpen(false);
-    },
+      setIsOpen(false)
+    }
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <EditDialog
+      trigger={
         <Button variant="outline" size="icon" className="size-8">
           <Settings className="w-4 h-4" />
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Modifier {tank.name}</DialogTitle>
-        </DialogHeader>
+      }
+      title={`Modifier ${tank.name}`}
+      formProps={getFormProps(form)}
+      isSubmitting={isSubmitting}
+      editAction={`/my-cellar/${tank.id}/edit`}
+      deleteAction={`/my-cellar/${tank.id}/edit`}
+      itemName={tank.name}
+      itemType="la cuve"
+      deleteInputs={[{ name: "intent", value: "delete" }]}
+      isOpen={isOpen}
+      onOpenChange={setIsOpen}
+    >
+      <Field
+        inputProps={getInputProps(fields.name, { type: "text" })}
+        labelsProps={{ children: "Nom" }}
+        errors={fields.name.errors}
+      />
 
-        <Form
-          {...getFormProps(form)}
-          method="POST"
-          action={`/my-cellar/${tank.id}/edit`}
-          className="space-y-4"
-        >
-          <Field
-            inputProps={getInputProps(fields.name, { type: "text" })}
-            labelsProps={{ children: "Nom" }}
-            errors={fields.name.errors}
-          />
+      <Field
+        inputProps={getInputProps(fields.description, { type: "text" })}
+        labelsProps={{ children: "Description" }}
+        errors={fields.description.errors}
+      />
 
-          <Field
-            inputProps={getInputProps(fields.description, { type: "text" })}
-            labelsProps={{ children: "Description" }}
-            errors={fields.description.errors}
-          />
+      <Field
+        inputProps={getInputProps(fields.volume, { type: "number", step: "0.1" })}
+        labelsProps={{ children: "Capacité (hL)" }}
+        errors={fields.volume.errors}
+      />
 
-          <Field
-            inputProps={getInputProps(fields.capacity, { type: "number" })}
-            labelsProps={{ children: "Capacité (L)" }}
-            errors={fields.capacity.errors}
-          />
-
-          <div className="space-y-2">
-            <div className="flex justify-between gap-4">
-              <div className="w-1/2 flex flex-col gap-2">
-                <Label className="text-sm font-medium">Matériau</Label>
-                <Select name={fields.material.name} defaultValue={tank.material}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Sélectionner un matériau" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="INOX">Inox</SelectItem>
-                    <SelectItem value="BETON">Béton</SelectItem>
-                    <SelectItem value="BOIS">Bois</SelectItem>
-                    <SelectItem value="PLASTIQUE">Plastique</SelectItem>
-                  </SelectContent>
-                </Select>
-                {fields.material.errors && (
-                  <p className="text-sm text-destructive">{fields.material.errors}</p>
-                )}
-              </div>
-              <div className="w-1/2 flex flex-col gap-2">
-                <Label className="text-sm font-medium">Statut</Label>
-                <Select name={fields.status.name} defaultValue={tank.status}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Sélectionner un statut" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="EMPTY">Vide</SelectItem>
-                    <SelectItem value="IN_USE">En cours d&apos;utilisation</SelectItem>
-                    <SelectItem value="MAINTENANCE">En maintenance</SelectItem>
-                  </SelectContent>
-                </Select>
-                {fields.status.errors && (
-                  <p className="text-sm text-destructive">{fields.status.errors}</p>
-                )}
-              </div>
-            </div>
+      <div className="space-y-2">
+        <div className="flex justify-between gap-4">
+          <div className="w-1/2">
+            <SelectField labelsProps={{ children: "Matériau" }} name={fields.material.name} defaultValue={fields.material.value || "INOX"} options={materialVariety.map((material) => ({
+              id: material.value,
+              name: material.label
+            }))} />
           </div>
-
-          <div className="flex justify-between">
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={isSubmitting}
-              className="size-8"
-              size="icon"
-            >
-              <Trash className="w-4 h-4" />
-            </Button>
-            <div className="flex space-x-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                Annuler
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Modification..." : "Modifier"}
-              </Button>
-            </div>
+          <div className="w-1/2">
+            <SelectField labelsProps={{ children: "Statut" }} name={fields.status.name} defaultValue={fields.status.value || "EMPTY"} options={tankStateVariety.map((status) => ({
+              id: status.value,
+              name: status.label
+            }))} />
           </div>
-        </Form>
-
-        {showDeleteConfirm && (
-          <div className="absolute inset-0 bg-white rounded-lg p-6 flex flex-col justify-center">
-            <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Supprimer la cuve &quot;{tank.name}&quot;
-              </h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Cette action est irréversible. Cette cuve sera définitivement supprimé.
-              </p>
-              <div className="flex justify-center space-x-3 ">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  Annuler
-                </Button>
-                <Form method="POST" action={`/my-cellar/${tank.id}/edit`}>
-                  <input type="hidden" name="intent" value="delete" />
-                  <Button type="submit" variant="destructive" disabled={isSubmitting}>
-                    {isSubmitting ? "Suppression..." : "Supprimer définitivement"}
-                  </Button>
-                </Form>
-              </div>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </EditDialog>
   );
 }

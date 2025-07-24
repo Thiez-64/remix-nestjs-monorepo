@@ -1,15 +1,20 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
-import type { Action, Process, Stock } from "@prisma/client";
+import { type Action, type Process, type Stock } from "../../lib/types";
+
 import {
   redirect,
   type ActionFunctionArgs,
   type LoaderFunctionArgs
 } from "@remix-run/node";
-import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import { useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { Circle, PlayCircle, Plus } from "lucide-react";
 import { useState } from "react";
+import { ActionButtons } from "../../components/action-buttons";
+import { CreateDialog } from "../../components/create-dialog";
+import { EmptyState } from "../../components/empty-state";
 import { Field } from "../../components/forms";
+import { PageLayout } from "../../components/page-layout";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import {
@@ -19,19 +24,10 @@ import {
   CardHeader,
   CardTitle,
 } from "../../components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../../components/ui/dialog";
+import { ProcessSchema } from "../../lib/schemas";
 import { requireUser } from "../../server/auth.server";
 import { CreateActionDialog } from "./process.$processId.actions";
 import { EditProcessDialog } from "./process.$processId.edit";
-import { ProcessSchema } from "./process.schema";
-
-
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
   const user = await requireUser({ context });  
@@ -145,8 +141,6 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   return { result: submission.reply() };
 };
 
-
-
 export default function Process() {
   const { processes, allActions, stocks } = useLoaderData<ProcessLoaderData>();
   const actionData = useActionData<typeof action>();
@@ -180,76 +174,48 @@ export default function Process() {
   });
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Processus de Vinification</h1>
-          <p className="text-gray-600">
-            Créez et gérez vos processus de fabrication
-          </p>
-        </div>
-
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nouveau Processus
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Créer un nouveau processus</DialogTitle>
-            </DialogHeader>
-
-            <Form {...getFormProps(form)} method="POST" className="space-y-4">
-              <Field
-                inputProps={getInputProps(fields.name, { type: "text" })}
-                labelsProps={{ children: "Nom du processus (ex: Vinification Rouge)" }}
-                errors={fields.name.errors}
-              />
-
-              <Field
-                inputProps={getInputProps(fields.description, { type: "text" })}
-                labelsProps={{ children: "Description (optionnel)" }}
-                errors={fields.description.errors}
-              />
-
-              <Field
-                inputProps={getInputProps(fields.startDate, { type: "date" })}
-                labelsProps={{ children: "Date de début (optionnel)" }}
-                errors={fields.startDate.errors}
-              />
-
-              <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setOpen(false)}
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Création..." : "Créer le processus"}
-                </Button>
-              </div>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
+    <PageLayout
+      title="Processus de Vinification"
+      description="Créez et gérez vos processus de fabrication"
+      actionButton={{
+        label: "Nouveau Processus",
+        icon: <Plus className="w-4 h-4 mr-2" />,
+        onClick: () => setOpen(true)
+      }}
+    >
+      <CreateDialog
+        trigger={<Button style={{ display: 'none' }} />} // Hidden trigger since we control via state
+        title="Créer un nouveau processus"
+        formProps={getFormProps(form)}
+        isOpen={open}
+        onOpenChange={setOpen}
+        isSubmitting={isSubmitting}
+        submitLabel="Créer le processus"
+      >
+        <Field
+          inputProps={getInputProps(fields.name, { type: "text" })}
+          labelsProps={{ children: "Nom du processus (ex: Vinification Rouge)" }}
+          errors={fields.name.errors}
+        />
+        <Field
+          inputProps={getInputProps(fields.description, { type: "text" })}
+          labelsProps={{ children: "Description (optionnel)" }}
+          errors={fields.description.errors}
+        />
+        <Field
+          inputProps={getInputProps(fields.startDate, { type: "date" })}
+          labelsProps={{ children: "Date de début (optionnel)" }}
+          errors={fields.startDate.errors}
+        />
+      </CreateDialog>
 
       <div className="grid gap-4">
         {processes.length === 0 ? (
-          <Card>
-            <CardContent className="flex items-center justify-center py-8">
-              <div className="text-center">
-                <PlayCircle className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun processus</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Commencez par créer votre premier processus de vinification
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={<PlayCircle className="mx-auto h-12 w-12" />}
+            title="Aucun processus"
+            description="Commencez par créer votre premier processus de vinification"
+          />
         ) : (
           processes.map((process) => (
             <Card key={process.id}>
@@ -261,13 +227,10 @@ export default function Process() {
                       <CardDescription>{process.description}</CardDescription>
                     )}
                   </div>
-                  <div className="flex space-x-2">
-                    {/* eslint-disable @typescript-eslint/no-explicit-any */}
-                    <CreateActionDialog process={process as any} availableActions={allActions as any} />
-                    <EditProcessDialog process={process as any} />
-                    {/* eslint-enable @typescript-eslint/no-explicit-any */}
-
-                  </div>
+                  <ActionButtons>
+                    <CreateActionDialog process={process as unknown as ProcessLoaderData['processes'][number]} availableActions={allActions as unknown as ProcessLoaderData['allActions']} />
+                    <EditProcessDialog process={process as unknown as ProcessLoaderData['processes'][number]} />
+                  </ActionButtons>
                 </div>
               </CardHeader>
               <CardContent>
@@ -428,6 +391,6 @@ export default function Process() {
           ))
         )}
       </div>
-    </div>
+    </PageLayout>
   );
 }

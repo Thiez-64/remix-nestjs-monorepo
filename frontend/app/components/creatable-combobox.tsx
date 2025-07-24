@@ -84,7 +84,7 @@ export const CreatableCombobox = ({ value, onChange, options, dropUp = false }: 
               value={inputValue}
               onValueChange={(val) => {
                 setInputValue(val);
-                onChange(val);
+                // Ne pas déclencher onChange pendant la frappe, seulement en local
               }}
               placeholder="Rechercher ou créer"
             />

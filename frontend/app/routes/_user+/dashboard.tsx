@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   BarChart3,
   CheckCircle,
-  Clock,
   Droplet,
   Package,
   TrendingUp,
@@ -14,7 +13,6 @@ import {
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Progress } from "../../components/ui/progress";
 import { requireUser } from "../../server/auth.server";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
@@ -25,36 +23,20 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     processes,
     batches,
     stocks,
-    actionsStats,
-    stocksStats
+    // actionsStats,
+
   ] = await Promise.all([
     // Actions récentes
     context.remixService.prisma.action.findMany({
       where: { userId: user.id },
       include: {
         consumables: true,
-        process: {
-          include: {
-            batch: true,
-          },
-        },
+        type: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 5,
     }),
 
-    // Processus actifs
-    context.remixService.prisma.process.findMany({
-      where: {
-        userId: user.id,
-        startDate: { lte: new Date() }
-      },
-      include: {
-        batch: true,
-      },
-      orderBy: { startDate: 'desc' },
-      take: 5,
-    }),
 
     // Cuves récentes
     context.remixService.prisma.batch.findMany({
@@ -77,34 +59,34 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     }),
 
     // Statistiques des actions
-    context.remixService.prisma.action.groupBy({
-      by: ['status'],
-      where: { userId: user.id },
-      _count: {
-        id: true,
-      },
-    }),
+    // context.remixService.prisma.action.groupBy({
+    //   by: ['typeId'],
+    //   where: { userId: user.id },
+    //   _count: {
+    //     id: true,
+    //   },
+    // }),
 
     // Statistiques des stocks
-    context.remixService.prisma.stock.aggregate({
-      where: { userId: user.id },
-      _count: {
-        id: true,
-      },
-      _sum: {
-        quantity: true,
-      },
-    }),
+    // context.remixService.prisma.stock.aggregate({
+    //   where: { userId: user.id },
+    //   _count: {
+    //     id: true,
+    //   },
+    //   _sum: {
+    //     quantity: true,
+    //   },
+    // }),
   ]);
 
   // Calculs des métriques
-  const totalActions = actionsStats.reduce((sum, stat) => sum + stat._count.id, 0);
-  const pendingActions = actionsStats.find(s => s.status === 'PENDING')?._count.id || 0;
-  const waitingStockActions = actionsStats.find(s => s.status === 'WAITING_STOCK')?._count.id || 0;
-  const completedActions = actionsStats.find(s => s.status === 'COMPLETED')?._count.id || 0;
+  // const totalActions = actionsStats._count.id || 0;
+  // const pendingActions = actionsStats.find(s => s.typeId === 'PENDING')?._count.id || 0;
+  // const waitingStockActions = actionsStats.find(s => s.typeId === 'WAITING_STOCK')?._count.id || 0;
+  // const completedActions = actionsStats.find(s => s.typeId === 'COMPLETED')?._count.id || 0;
 
-  const criticalStocks = stocks.filter(s => s.isOutOfStock).length;
-  const lowStocks = stocks.filter(s => !s.isOutOfStock && s.quantity <= 10).length;
+  // const criticalStocks = stocks.filter(s => s.isOutOfStock).length;
+  // const lowStocks = stocks.filter(s => !s.isOutOfStock && s.quantity <= 10).length;
 
   return {
     user,
@@ -112,25 +94,26 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     processes,
     batches,
     stocks,
-    metrics: {
-      totalActions,
-      pendingActions,
-      waitingStockActions,
-      completedActions,
-      totalStocks: stocksStats._count.id || 0,
-      totalStockValue: stocksStats._sum.quantity || 0,
-      criticalStocks,
-      lowStocks,
-      activeProcesses: processes.length,
-      totalBatches: batches.length,
-    }
+    // metrics: {
+    //   totalActions,
+    //   pendingActions,
+    //   waitingStockActions,
+    //   completedActions,
+    //   totalStocks: stocksStats._count.id || 0,
+    //   totalStockValue: stocksStats._sum.quantity || 0,
+    //   criticalStocks,
+    //   lowStocks,
+    //   activeProcesses: processes.length,
+    //   totalBatches: batches.length,
+    // }
   };
 };
 
 type DashboardData = Awaited<ReturnType<typeof loader>>;
 
 export default function Dashboard() {
-  const { user, actions, processes, batches, stocks, metrics } = useLoaderData<DashboardData>();
+  // const { user, actions, processes, batches, stocks, metrics } = useLoaderData<DashboardData>();
+  const { user, actions, processes, batches } = useLoaderData<DashboardData>();
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -187,10 +170,10 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold">{metrics.totalActions}</div>
-              <p className="text-xs text-muted-foreground">
+              {/* <div className="text-2xl font-bold">{metrics.totalActions}</div> */}
+              {/* <p className="text-xs text-muted-foreground">
                 {metrics.pendingActions} en attente
-              </p>
+              </p> */}
             </div>
           </CardContent>
         </Card>
@@ -202,7 +185,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold">{metrics.activeProcesses}</div>
+              {/* <div className="text-2xl font-bold">{metrics.activeProcesses}</div> */}
               <p className="text-xs text-muted-foreground">
                 En cours de production
               </p>
@@ -217,10 +200,10 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold">{metrics.totalStocks}</div>
+              {/* <div className="text-2xl font-bold">{metrics.totalStocks}</div>
               <p className="text-xs text-muted-foreground">
                 {metrics.criticalStocks} en rupture
-              </p>
+              </p> */}
             </div>
           </CardContent>
         </Card>
@@ -232,7 +215,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold">{metrics.totalBatches}</div>
+              {/* <div className="text-2xl font-bold">{metrics.totalBatches}</div> */}
               <p className="text-xs text-muted-foreground">
                 Volume total traité
               </p>
@@ -243,44 +226,44 @@ export default function Dashboard() {
 
       {/* Alertes */}
       {
-        (metrics.criticalStocks > 0 || metrics.waitingStockActions > 0) && (
-          <Card className="border-red-200 bg-red-50">
-            <CardHeader>
-              <CardTitle className="text-red-800 flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                Alertes importantes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {metrics.criticalStocks > 0 && (
-                <div className="flex items-center justify-between p-3 bg-white rounded-md border border-red-200">
-                  <div className="flex items-center gap-2">
-                    <Package className="h-4 w-4 text-red-600" />
-                    <span className="text-red-800">
-                      {metrics.criticalStocks} stock(s) en rupture
-                    </span>
-                  </div>
-                  <Button variant="outline" size="sm" className="text-red-700 border-red-300">
-                    Voir les stocks
-                  </Button>
-                </div>
-              )}
-              {metrics.waitingStockActions > 0 && (
-                <div className="flex items-center justify-between p-3 bg-white rounded-md border border-red-200">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-red-600" />
-                    <span className="text-red-800">
-                      {metrics.waitingStockActions} action(s) en attente de stock
-                    </span>
-                  </div>
-                  <Button variant="outline" size="sm" className="text-red-700 border-red-300">
-                    Voir les actions
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )
+        // (metrics.criticalStocks > 0 || metrics.waitingStockActions > 0) && (
+        //   <Card className="border-red-200 bg-red-50">
+        //     <CardHeader>
+        //       <CardTitle className="text-red-800 flex items-center gap-2">
+        //         <AlertTriangle className="h-5 w-5" />
+        //         Alertes importantes
+        //       </CardTitle>
+        //     </CardHeader>
+        //     <CardContent className="space-y-2">
+        //       {metrics.criticalStocks > 0 && (
+        //         <div className="flex items-center justify-between p-3 bg-white rounded-md border border-red-200">
+        //           <div className="flex items-center gap-2">
+        //             <Package className="h-4 w-4 text-red-600" />
+        //             <span className="text-red-800">
+        //               {metrics.criticalStocks} stock(s) en rupture
+        //             </span>
+        //           </div>
+        //           <Button variant="outline" size="sm" className="text-red-700 border-red-300">
+        //             Voir les stocks
+        //           </Button>
+        //         </div>
+        //       )}
+        //       {metrics.waitingStockActions > 0 && (
+        //         <div className="flex items-center justify-between p-3 bg-white rounded-md border border-red-200">
+        //           <div className="flex items-center gap-2">
+        //             <Clock className="h-4 w-4 text-red-600" />
+        //             <span className="text-red-800">
+        //               {metrics.waitingStockActions} action(s) en attente de stock
+        //             </span>
+        //           </div>
+        //           <Button variant="outline" size="sm" className="text-red-700 border-red-300">
+        //             Voir les actions
+        //           </Button>
+        //         </div>
+        //       )}
+        //     </CardContent>
+        //   </Card>
+        // )
       }
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -306,12 +289,12 @@ export default function Dashboard() {
                 {actions.map((action) => (
                   <div key={action.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
                     <div>
-                      <p className="font-medium">{action.type}</p>
+                      <p className="font-medium">{action.type.name}</p>
                       <p className="text-sm text-gray-600">
                         {action.consumables.length} consommable(s) • {action.duration}j
                       </p>
                     </div>
-                    {getStatusBadge(action.status)}
+                    {getStatusBadge(action.type.status)}
                   </div>
                 ))}
               </div>
@@ -338,7 +321,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-3 max-h-40 overflow-y-auto">
-                {processes.map((process) => {
+                  {/* {processes.map((process) => {
                   const daysSinceStart = Math.ceil((new Date().getTime() - new Date(process.startDate || new Date()).getTime()) / (1000 * 60 * 60 * 24));
                   const progress = Math.min(100, (daysSinceStart / 30) * 100);
 
@@ -357,7 +340,7 @@ export default function Dashboard() {
                       <Progress value={progress} className="h-2" />
                     </div>
                   );
-                })}
+                })} */}
               </div>
             )}
           </CardContent>
@@ -375,14 +358,14 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {stocks.length === 0 ? (
+            {/* {stocks.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <CheckCircle className="mx-auto h-12 w-12 text-green-300 mb-4" />
                 <p>Tous les stocks sont OK</p>
               </div>
             ) : (
               <div className="space-y-3 max-h-40 overflow-y-auto">
-                {stocks.map((stock) => {
+                  {/* {stocks.map((stock) => {
                   const status = getStockStatus(stock);
                   const StatusIcon = status.icon;
 
@@ -404,9 +387,9 @@ export default function Dashboard() {
                       </Badge>
                     </div>
                   );
-                })}
-              </div>
-            )}
+                })} */}
+            {/* </div> */}
+            {/* )} */}
           </CardContent>
         </Card>
 

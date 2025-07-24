@@ -1,5 +1,6 @@
 import { useInputControl } from "@conform-to/react";
-import { useId } from "react";
+import { useId, useState } from "react";
+import { cn } from "../lib/utils";
 import { CreatableCombobox } from "./creatable-combobox";
 import { Checkbox, type CheckboxProps } from "./ui/checkbox";
 import { Input } from "./ui/input";
@@ -11,16 +12,18 @@ export const Field = ({
   labelsProps,
   inputProps,
   errors,
+  className,
 }: {
-  labelsProps: React.LabelHTMLAttributes<HTMLLabelElement>;
+    labelsProps?: React.LabelHTMLAttributes<HTMLLabelElement>;
   inputProps: React.InputHTMLAttributes<HTMLInputElement>;
   errors?: string[] | undefined;
+    className?: string;
 }) => {
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-gray-500 text-sm" {...labelsProps}>
+    <div className={cn("flex flex-col gap-1", className)}>
+      {labelsProps && <label className="text-gray-500 text-sm" {...labelsProps}>
         {labelsProps.children}
-      </label>
+      </label>}
       <Input {...inputProps} />
       {errors ? (
         <ul role="alert" className="text-red-600 flex flex-col gap-y-0.5">
@@ -151,19 +154,21 @@ export function CreatableComboboxField({
   options,
   errors,
   dropUp,
+  className,
 }: {
-  labelsProps: React.LabelHTMLAttributes<HTMLLabelElement>;
+    labelsProps?: React.LabelHTMLAttributes<HTMLLabelElement>;
   value: string;
   onChange: (values: string) => void;
   options: Array<{ id: string; name: string }>;
   errors?: string[] | undefined;
     dropUp?: boolean;
+    className?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-gray-500 text-sm" {...labelsProps}>
+    <div className={cn("flex flex-col gap-1", className)}>
+      {labelsProps && <label className="text-gray-500 text-sm" {...labelsProps}>
         {labelsProps.children}
-      </label>
+      </label>}
       <CreatableCombobox value={value} onChange={onChange} options={options} dropUp={dropUp} />
       {errors ? (
         <ul role="alert" className="text-red-600 flex flex-col gap-y-0.5">
@@ -223,23 +228,27 @@ export function SelectField({
   defaultValue,
   errors,
   options,
+  className,
 }: {
   labelsProps: React.LabelHTMLAttributes<HTMLLabelElement>;
   name: string;
   defaultValue: string;
   errors?: string[] | undefined;
   options: Array<{ id: string; name: string }>;
+    className?: string;
 }) {
+  const [selected, setSelected] = useState(defaultValue);
   return (
-    <div className="flex flex-col gap-1">
+    <div className={cn("flex flex-col gap-1", className)}>
       <label className="text-gray-500 text-sm" {...labelsProps}>
         {labelsProps.children}
       </label>
-      <Select name={name} defaultValue={defaultValue}>
+      <input type="hidden" name={name} value={selected} />
+      <Select value={selected} onValueChange={setSelected}>
         <SelectTrigger className="w-full bg-white text-gray-500 text-sm">
           <SelectValue placeholder="Sélectionner un statut" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-h-[300px] overflow-y-auto">
           {options.map((option) => (
             <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>
           ))}

@@ -1,84 +1,11 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Boxes } from "lucide-react";
+import { getCommodityStatusConfig, getStockStatusConfig } from "../lib/utils";
 import { StockLoaderData } from "../routes/_user+/stock";
 import { EditStockDialog } from "../routes/_user+/stock.$stockId.edit";
 import { RestockDialog } from "./restock-dialog";
 import { Badge } from "./ui/badge";
 import { DataTable } from "./ui/data-table";
-
-
-const getStatusConfig = (isOutOfStock: boolean, isLowStock: boolean) => {
-  if (isOutOfStock) {
-    return {
-      bgColor: 'bg-red-200 text-red-800',
-      dotColor: 'bg-red-600',
-      text: 'Rupture de stock'
-    };
-  }
-  if (isLowStock) {
-    return {
-      bgColor: 'bg-orange-200 text-orange-800',
-      dotColor: 'bg-orange-600',
-      text: 'Stock faible'
-    };
-  }
-  return {
-    bgColor: 'bg-green-200 text-green-800',
-    dotColor: 'bg-green-600',
-    text: 'En stock'
-  };
-};
-
-
-
-const getCommodityStatusConfig = (commodity: string) => {
-  switch (commodity) {
-    case 'FERMENTATION_ADDITIVES':
-      return {
-        bgColor: 'bg-fuchsia-200 text-fuchsia-800',
-        dotColor: 'bg-fuchsia-600',
-        text: 'Additifs de fermentation'
-      };
-    case 'STABILIZATION_CLARIFICATION':
-      return {
-        bgColor: 'bg-violet-200 text-violet-800',
-        dotColor: 'bg-violet-600',
-        text: 'Stabilisation & Clarification'
-      };
-    case 'ORGANOLEPTIC_CORRECTION':
-      return {
-        bgColor: 'bg-yellow-200 text-yellow-800',
-        dotColor: 'bg-yellow-600',
-        text: 'Correction organoleptique'
-      };
-    case 'ENERGY':
-      return {
-        bgColor: 'bg-sky-200 text-sky-800',
-        dotColor: 'bg-sky-600',
-        text: 'Énergie'
-      };
-    case 'ANALYSIS_LAB':
-      return {
-        bgColor: 'bg-blue-200 text-blue-800',
-        dotColor: 'bg-blue-600',
-        text: 'Analyse & Laboratoire'
-      };
-    case 'FILTRATION':
-      return {
-        bgColor: 'bg-rose-200 text-rose-800',
-        dotColor: 'bg-rose-600',
-        text: 'Filtration'
-      };
-    case 'PACKAGING':
-      return {
-        bgColor: 'bg-amber-200 text-amber-800',
-        dotColor: 'bg-amber-600',
-        text: 'Conditionnement'
-      };
-    default:
-  }
-
-};
 
 const columns: ColumnDef<StockLoaderData['stocks'][number]>[] = [
   {
@@ -98,9 +25,7 @@ const columns: ColumnDef<StockLoaderData['stocks'][number]>[] = [
       const isOutOfStock = quantity === 0;
       const isLowStock = quantity > 0 && quantity <= minimumQty;
 
-
-
-      const config = getStatusConfig(isOutOfStock, isLowStock);
+      const config = getStockStatusConfig(isOutOfStock, isLowStock);
 
       return (
         <Badge variant='secondary' className={`${config.bgColor}`}>
@@ -172,8 +97,6 @@ const columns: ColumnDef<StockLoaderData['stocks'][number]>[] = [
     ,
   },
 ];
-
-
 
 export function StocksDataTable({ stocks }: { stocks: StockLoaderData['stocks'] }) {
   if (stocks.length === 0) {
